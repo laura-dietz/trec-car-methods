@@ -51,7 +51,7 @@ public class TrecCarLuceneIndexer {
         TrecCarParagraph trecCarParaRepr = new TrecCarParagraph();
         TrecCarPageRepr trecCarPageRepr = new TrecCarPage();
         String paragraphIndexName = "paragraph.lucene";
-        String pageIndexName = "paragraph.lucene";
+        String pageIndexName = "page.lucene";
 
         String representation = args[1];
 
