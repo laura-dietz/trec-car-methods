@@ -50,17 +50,22 @@ public class TrecCarLuceneIndexer {
 
         TrecCarParagraph trecCarParaRepr = new TrecCarParagraph();
         TrecCarPageRepr trecCarPageRepr = new TrecCarPage();
+        String paragraphIndexName = "paragraph.lucene";
+        String pageIndexName = "paragraph.lucene";
 
         String representation = args[1];
 
-        if (representation.equals("entity")) trecCarPageRepr = new TrecCarEntity();
+        if (representation.equals("entity")) {
+            trecCarPageRepr = new TrecCarEntity();
+            pageIndexName = "entity.lucene";
+        }
 
         if (mode.equals("paragraphs")) {
             final String paragraphsFile = args[2];
             final FileInputStream fileInputStream2 = new FileInputStream(new File(paragraphsFile));
 
             System.out.println("Creating paragraph index in "+indexPath);
-            final IndexWriter indexWriter = setupIndexWriter(indexPath, "paragraph.lucene");
+            final IndexWriter indexWriter = setupIndexWriter(indexPath, paragraphIndexName);
             final Iterator<Data.Paragraph> paragraphIterator = DeserializeData.iterParagraphs(fileInputStream2);
 
             for (int i=1; paragraphIterator.hasNext(); i++){
@@ -83,7 +88,7 @@ public class TrecCarLuceneIndexer {
             final FileInputStream fileInputStream = new FileInputStream(new File(pagesFile));
 
             System.out.println("Creating page index in "+indexPath);
-            final IndexWriter indexWriter = setupIndexWriter(indexPath, "pages.lucene");
+            final IndexWriter indexWriter = setupIndexWriter(indexPath, pageIndexName);
 
             final Iterator<Data.Page> paragraphIterator = DeserializeData.iterAnnotations(fileInputStream);
 

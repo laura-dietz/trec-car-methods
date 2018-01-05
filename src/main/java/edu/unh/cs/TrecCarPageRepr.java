@@ -22,7 +22,8 @@ public interface TrecCarPageRepr {
     Document pageToLuceneDoc(Data.Page paragraph);
 
     enum PageField {
-        Id(0), Text(1), Headings(2), Title(3);
+        Id(0), Text(1), Headings(2), Title(3), AnchorNames(4), DisambiguationNames(5), CategoryNames(6)
+        , InlinkIds(7), OutlinkIds(8);
 
         private int value;
         private PageField(int value) {
