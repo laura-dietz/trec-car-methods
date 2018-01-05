@@ -14,8 +14,9 @@ import java.util.List;
 /**
  * A search index representation of a trec car paragraph
  */
-public class TrecCarPage implements TrecCarPageRepr {
+public class TrecCarEntity implements TrecCarPageRepr {
 
+    @Override
     public String idPage(Data.Page p){
         return p.getPageId();
     }
@@ -56,6 +57,7 @@ public class TrecCarPage implements TrecCarPageRepr {
 
     }
 
+    @Override
     @NotNull
     public HashMap<PageField, List<String>> convertPage(Data.Page p){
         final HashMap<PageField, List<String>> result = new HashMap<>();
@@ -72,6 +74,7 @@ public class TrecCarPage implements TrecCarPageRepr {
         return result;
     }
 
+    @Override
     @NotNull
     public Document pageToLuceneDoc(Data.Page paragraph) {
         final HashMap<PageField, List<String>> repr = convertPage(paragraph);

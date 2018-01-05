@@ -4,9 +4,10 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>edu.unh.cs.treccar</groupId>
-    <artifactId>treccar-methods</artifactId>
+    <groupId>com.github.laura-dietz</groupId>
+    <artifactId>trec-car-methods</artifactId>
     <version>0.1</version>
+    <packaging>jar</packaging>
 
     <repositories>
         <repository>

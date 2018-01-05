@@ -1,6 +1,8 @@
 package edu.unh.cs.lucene;
 
+import edu.unh.cs.TrecCarEntity;
 import edu.unh.cs.TrecCarPage;
+import edu.unh.cs.TrecCarPageRepr;
 import edu.unh.cs.TrecCarParagraph;
 import edu.unh.cs.treccar_v2.Data;
 import edu.unh.cs.treccar_v2.read_data.DeserializeData;
@@ -28,28 +30,33 @@ import java.util.Iterator;
 /**
  * Example of how to build a lucene index of trec car paragraphs
  */
-public class TrecCarLuceneParagraphIndex {
+public class TrecCarLuceneIndexer {
 
     private static void usage() {
-        System.out.println("Command line parameters: (paragraphs|pages) CBOR LuceneINDEX");
+        System.out.println("Command line parameters: (paragraphs|pages) (paragraph|page|entity|edgedoc) CBOR LuceneINDEX");
         System.exit(-1);
     }
 
     public static void main(String[] args) throws IOException {
         System.setProperty("file.encoding", "UTF-8");
 
-        TrecCarParagraph trecCarParaRepr = new TrecCarParagraph();
-        TrecCarPage trecCarPageRepr = new TrecCarPage();
 
 
-        if (args.length < 3)
+        if (args.length < 4)
             usage();
 
         String mode = args[0];
-        String indexPath = args[2];
+        String indexPath = args[3];
+
+        TrecCarParagraph trecCarParaRepr = new TrecCarParagraph();
+        TrecCarPageRepr trecCarPageRepr = new TrecCarPage();
+
+        String representation = args[1];
+
+        if (representation.equals("entity")) trecCarPageRepr = new TrecCarEntity();
 
         if (mode.equals("paragraphs")) {
-            final String paragraphsFile = args[1];
+            final String paragraphsFile = args[2];
             final FileInputStream fileInputStream2 = new FileInputStream(new File(paragraphsFile));
 
             System.out.println("Creating paragraph index in "+indexPath);
@@ -72,7 +79,7 @@ public class TrecCarLuceneParagraphIndex {
             indexWriter.close();
         }
         else if (mode.equals("pages")) {
-            final String pagesFile = args[1];
+            final String pagesFile = args[2];
             final FileInputStream fileInputStream = new FileInputStream(new File(pagesFile));
 
             System.out.println("Creating page index in "+indexPath);
