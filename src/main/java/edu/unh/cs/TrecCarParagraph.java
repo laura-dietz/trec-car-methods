@@ -42,7 +42,7 @@ public class TrecCarParagraph {
     public HashMap<ParagraphField, List<String>> convertParagraph(Data.Paragraph p){
         final HashMap<ParagraphField, List<String>> result = new HashMap<>();
         result.put(ParagraphField.Text, Collections.singletonList(p.getTextOnly()));
-        result.put(ParagraphField.Links, TrecCarReprUtils.getEntitiesOnly(p));
+//        result.put(ParagraphField.Links, TrecCarReprUtils.getEntitiesOnly(p));
         return result;
     }
 
