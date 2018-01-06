@@ -16,10 +16,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.StringReader;
+import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -78,7 +75,7 @@ public class TrecCarLuceneQuery {
     }
 
     private static void usage() {
-        System.out.println("Command line parameters: (paragraph|page|entity|edgedoc)  (section|page) (run|display) OutlineCBOR INDEX\n");
+        System.out.println("Command line parameters: (paragraph|page|entity|edgedoc)  (section|page) (run|display) OutlineCBOR INDEX RUNFile\n");
         System.exit(-1);
     }
 //        System.out.println("Command line parameters: (paragraphs|pages)CBOR LuceneINDEX");
@@ -87,7 +84,7 @@ public class TrecCarLuceneQuery {
     public static void main(String[] args) throws IOException {
         System.setProperty("file.encoding", "UTF-8");
 
-        if (args.length < 5)
+        if (args.length < 6)
             usage();
 
         final String representation = args[0];
@@ -95,32 +92,32 @@ public class TrecCarLuceneQuery {
 
         String queryAs = args[1];
         String output = args[2];
-        TrecCarLuceneConfig.LuceneQueryConfig cfg = new TrecCarLuceneConfig.LuceneQueryConfig(icfg, "run".equals(output), "section".equals(queryAs));
+        TrecCarLuceneConfig.LuceneQueryConfig cfg = new TrecCarLuceneConfig.LuceneQueryConfig(icfg, !("display".equals(output)), "section".equals(queryAs));
 
 
         final String queryCborFile = args[3];
         final String indexPath = args[4];
+        final String runFileName = args[5];
+
 
         System.out.println("Index loaded from "+indexPath+"/"+cfg.getIndexConfig().getIndexName());
         IndexSearcher searcher = setupIndexSearcher(indexPath, cfg.getIndexConfig().indexName);
         searcher.setSimilarity(new BM25Similarity());
         final MyQueryBuilder queryBuilder = new MyQueryBuilder(new StandardAnalyzer(), cfg.getIndexConfig().getSearchFields());
 
-
+        final PrintWriter runfile = new PrintWriter(runFileName);
 
         if(cfg.queryAsSection ) {
             final FileInputStream fileInputStream3 = new FileInputStream(new File(queryCborFile));
             for (Data.Page page : DeserializeData.iterableAnnotations(fileInputStream3)) {
-                if (!cfg.outputAsRun)  System.out.println("\n\nPage: " + page.getPageId());
+                System.out.println("\n\nPage: " + page.getPageId());
                 for (List<Data.Section> sectionPath : page.flatSectionPaths()) {
-                    if (!cfg.outputAsRun) {
-                        System.out.println();
-                        System.out.println(Data.sectionPathId(page.getPageId(), sectionPath) + "   \t " + Data.sectionPathHeadings(sectionPath));
-                    }
+                    System.out.println();
+                    System.out.println(Data.sectionPathId(page.getPageId(), sectionPath) + "   \t " + Data.sectionPathHeadings(sectionPath));
 
                     final String queryStr = buildSectionQueryStr(page, sectionPath);
                     final String queryId = Data.sectionPathId(page.getPageId(), sectionPath);
-                    oneQuery(searcher, queryBuilder, queryStr, queryId, cfg.isOutputAsRun());
+                    oneQuery(searcher, queryBuilder, queryStr, queryId, cfg.isOutputAsRun(), runfile);
                 }
             }
             System.out.println();
@@ -132,18 +129,21 @@ public class TrecCarLuceneQuery {
 
                     final String queryStr = buildSectionQueryStr(page, Collections.emptyList());
                     final String queryId = page.getPageId();
-                    oneQuery(searcher, queryBuilder, queryStr, queryId, cfg.isOutputAsRun());
+                    oneQuery(searcher, queryBuilder, queryStr, queryId, cfg.isOutputAsRun(), runfile);
             }
             System.out.println();
         }
+
+        runfile.close();
+
     }
 
-    private static void oneQuery(IndexSearcher searcher, MyQueryBuilder queryBuilder, String queryStr, String queryId, boolean outputAsRun) throws IOException {
+    private static void oneQuery(IndexSearcher searcher, MyQueryBuilder queryBuilder, String queryStr, String queryId, boolean outputAsRun, PrintWriter runfile) throws IOException {
         // get top 10 documents
         final BooleanQuery booleanQuery = queryBuilder.toQuery(queryStr);
         TopDocs tops = searcher.search(booleanQuery, 100);
         ScoreDoc[] scoreDoc = tops.scoreDocs;
-        if(!outputAsRun) System.out.println("Found "+scoreDoc.length+" results.");
+        System.out.println("Found "+scoreDoc.length+" results.");
 
         for (int i = 0; i < scoreDoc.length; i++) {
             ScoreDoc score = scoreDoc[i];
@@ -159,9 +159,7 @@ public class TrecCarLuceneQuery {
                 System.out.println("  " + doc.getField(TEXT_FIELD).stringValue());
             }
 
-            if(outputAsRun) {
-                System.out.println(queryId + " Q0 " + docId + " " + searchRank + " " + searchScore + " Lucene-BM25");
-            }
+            runfile.println(queryId + " Q0 " + docId + " " + searchRank + " " + searchScore + " Lucene-BM25");
         }
     }
 
