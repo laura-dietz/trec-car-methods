@@ -38,6 +38,15 @@ public class TrecCarLuceneIndexer {
     public static void main(String[] args) throws IOException {
         System.setProperty("file.encoding", "UTF-8");
 
+        if(args.length <1){
+            usage();
+        }
+
+        if("--tool-version".equals(args[0])) {
+            System.out.println("1");
+            System.exit(0);
+        }
+
         if (args.length < 3)
             usage();
 
