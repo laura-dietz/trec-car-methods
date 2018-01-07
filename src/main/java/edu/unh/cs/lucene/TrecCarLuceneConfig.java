@@ -1,9 +1,6 @@
 package edu.unh.cs.lucene;
 
-import edu.unh.cs.TrecCarEntity;
-import edu.unh.cs.TrecCarPage;
-import edu.unh.cs.TrecCarPageRepr;
-import edu.unh.cs.TrecCarParagraph;
+import edu.unh.cs.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,9 +31,9 @@ public class TrecCarLuceneConfig {
     public static class LuceneIndexConfig {
         String representation;
         String indexName = "paragraph.lucene";
-        TrecCarParagraph trecCarParaRepr = new TrecCarParagraph();
-        TrecCarPageRepr trecCarPageRepr = new TrecCarPage();
+        TrecCarRepr trecCarRepr = null;
         boolean isPageConfig = false;
+        private List<String> searchFields;
 
         LuceneIndexConfig() {
         }
@@ -50,53 +47,57 @@ public class TrecCarLuceneConfig {
         }
 
         public TrecCarParagraph getTrecCarParaRepr() {
-            return trecCarParaRepr;
+            return (TrecCarParagraph) trecCarRepr;
         }
 
         public TrecCarPageRepr getTrecCarPageRepr() {
-            return trecCarPageRepr;
+            return (TrecCarPageRepr) trecCarRepr;
         }
 
+        public TrecCarRepr getTrecCarRepr() {
+            return trecCarRepr;
+        }
+
+        public List<String> getDefaultSearchFields() {
+            final ArrayList<String> searchFields = new ArrayList<>();
+                for( TrecCarRepr.TrecCarSearchField field: trecCarRepr.getSearchFields())
+                    searchFields.add(field.toString());
+            return searchFields;
+        }
+
+        public void setSearchFields(List<String> searchFields){
+            this.searchFields = searchFields;
+        }
 
         public List<String> getSearchFields() {
-            final ArrayList<String> searchFields = new ArrayList<>();
-            if (isPageConfig) {
-                for( TrecCarPageRepr.PageField field: TrecCarPageRepr.PageField.values())
-                    searchFields.add(searchFields.toString());
-            }
-            else {
-                for( TrecCarParagraph.ParagraphField field: TrecCarParagraph.ParagraphField.values())
-                    searchFields.add(searchFields.toString());
-            }
             return searchFields;
-
         }
-
-
-
     }
 
     public static LuceneIndexConfig paragraphConfig() {
         final LuceneIndexConfig config = new LuceneIndexConfig();
         config.indexName = "paragraph.lucene";
-        config.trecCarParaRepr = new TrecCarParagraph();
+        config.trecCarRepr = new TrecCarParagraph();
         config.isPageConfig = false;
+        config.setSearchFields(config.getDefaultSearchFields());
         return config;
     }
 
     public static LuceneIndexConfig pageConfig() {
         final LuceneIndexConfig config = new LuceneIndexConfig();
         config.indexName = "page.lucene";
-        config.trecCarPageRepr = new TrecCarPage();
+        config.trecCarRepr = new TrecCarPage();
         config.isPageConfig = true;
+        config.setSearchFields(config.getDefaultSearchFields());
         return config;
     }
 
     public static LuceneIndexConfig entityConfig() {
         final LuceneIndexConfig config = new LuceneIndexConfig();
         config.indexName = "entity.lucene";
-        config.trecCarPageRepr = new TrecCarEntity();
+        config.trecCarRepr = new TrecCarEntity();
         config.isPageConfig = true;
+        config.setSearchFields(config.getDefaultSearchFields());
         return config;
     }
 

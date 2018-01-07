@@ -1,6 +1,6 @@
 package edu.unh.cs.lucene;
 
-import edu.unh.cs.TrecCarParagraph;
+import edu.unh.cs.TrecCarRepr;
 import edu.unh.cs.treccar_v2.Data;
 import edu.unh.cs.treccar_v2.read_data.DeserializeData;
 import org.apache.lucene.analysis.TokenStream;
@@ -20,10 +20,9 @@ import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
-import static edu.unh.cs.lucene.TrecCarLuceneQuery.MyQueryBuilder.TEXT_FIELD;
 
 /*
  * User: dietz
@@ -36,27 +35,27 @@ import static edu.unh.cs.lucene.TrecCarLuceneQuery.MyQueryBuilder.TEXT_FIELD;
  */
 public class TrecCarLuceneQuery {
 
-
-    static class MyQueryBuilder {
-
-
-        TrecCarParagraph trecCarParaRepr = new TrecCarParagraph();
+    public static class MyQueryBuilder {
+        TrecCarRepr trecCarParaRepr;
         String paragraphIndexName = "paragraph.lucene";
-        final public static String TEXT_FIELD = TrecCarParagraph.ParagraphField.Text.toString();
 
         private final StandardAnalyzer analyzer;
         private final List<String> searchFields;
+        private final TrecCarRepr trecCarRepr;
         private List<String> tokens;
+        private final String textSearchField;
 
-        public MyQueryBuilder(StandardAnalyzer standardAnalyzer, List<String> searchFields){
+        public MyQueryBuilder(StandardAnalyzer standardAnalyzer, List<String> searchFields, TrecCarRepr trecCarRepr){
             analyzer = standardAnalyzer;
             this.searchFields = searchFields;
+            textSearchField = trecCarRepr.getTextField().toString();
+            this.trecCarRepr = trecCarRepr;
             tokens = new ArrayList<>(128);
         }
 
         public BooleanQuery toQuery(String queryStr) throws IOException {
 
-            TokenStream tokenStream = analyzer.tokenStream(TEXT_FIELD, new StringReader(queryStr));
+            TokenStream tokenStream = analyzer.tokenStream(textSearchField, new StringReader(queryStr));
             tokenStream.reset();
             tokens.clear();
             while (tokenStream.incrementToken()) {
@@ -66,16 +65,24 @@ public class TrecCarLuceneQuery {
             tokenStream.end();
             tokenStream.close();
             BooleanQuery.Builder booleanQuery = new BooleanQuery.Builder();
-            String searchField = TEXT_FIELD;
-            for (String token : tokens) {
-                booleanQuery.add(new TermQuery(new Term(searchField, token)), BooleanClause.Occur.SHOULD);
+//            for (String token : tokens) {
+//                booleanQuery.add(new TermQuery(new Term(textSearchField, token)), BooleanClause.Occur.SHOULD);
+//            }
+
+            for (String searchField : this.searchFields) {
+                for (String token : tokens) {
+                    booleanQuery.add(new TermQuery(new Term(searchField, token)), BooleanClause.Occur.SHOULD);
+                }
             }
+
+
             return booleanQuery.build();
         }
     }
 
     private static void usage() {
-        System.out.println("Command line parameters: (paragraph|page|entity|edgedoc)  (section|page) (run|display) OutlineCBOR INDEX RUNFile\n");
+        System.out.println("Command line parameters: (paragraph|page|entity|edgedoc)  (section|page) (run|display) OutlineCBOR INDEX RUNFile  [searchField1] [searchField2] ...\n" +
+                "searchFields one of "+Arrays.toString(TrecCarRepr.TrecCarSearchField.values()));
         System.exit(-1);
     }
 //        System.out.println("Command line parameters: (paragraphs|pages)CBOR LuceneINDEX");
@@ -100,10 +107,20 @@ public class TrecCarLuceneQuery {
         final String runFileName = args[5];
 
 
+
+        List<String> searchFields = null;
+        if (args.length  > 6) searchFields = Arrays.asList(Arrays.copyOfRange(args, 6, args.length));
+
         System.out.println("Index loaded from "+indexPath+"/"+cfg.getIndexConfig().getIndexName());
         IndexSearcher searcher = setupIndexSearcher(indexPath, cfg.getIndexConfig().indexName);
         searcher.setSimilarity(new BM25Similarity());
-        final MyQueryBuilder queryBuilder = new MyQueryBuilder(new StandardAnalyzer(), cfg.getIndexConfig().getSearchFields());
+
+        List<String> searchFieldsUsed;
+        if (searchFields == null) searchFieldsUsed = cfg.getIndexConfig().getSearchFields();
+        else searchFieldsUsed = searchFields;
+
+
+        final MyQueryBuilder queryBuilder = new MyQueryBuilder(new StandardAnalyzer(), searchFieldsUsed, icfg.trecCarRepr );
 
         final PrintWriter runfile = new PrintWriter(runFileName);
 
@@ -139,7 +156,7 @@ public class TrecCarLuceneQuery {
     }
 
     private static void oneQuery(IndexSearcher searcher, MyQueryBuilder queryBuilder, String queryStr, String queryId, boolean outputAsRun, PrintWriter runfile) throws IOException {
-        // get top 10 documents
+        final TrecCarRepr trecCarRepr = queryBuilder.trecCarRepr;
         final BooleanQuery booleanQuery = queryBuilder.toQuery(queryStr);
         TopDocs tops = searcher.search(booleanQuery, 100);
         ScoreDoc[] scoreDoc = tops.scoreDocs;
@@ -149,14 +166,14 @@ public class TrecCarLuceneQuery {
             ScoreDoc score = scoreDoc[i];
             final Document doc = searcher.doc(score.doc); // to access stored content
             // print score and internal docid
-            final String docId = doc.getField("ID").stringValue();
+            final String docId = doc.getField(trecCarRepr.getIdField().name()).stringValue();
             final float searchScore = score.score;
             final int searchRank = i+1;
 
             if(!outputAsRun) {
                 System.out.println(docId + " (" + score.doc + "):  SCORE " + score.score);
                 // access and print content
-                System.out.println("  " + doc.getField(TEXT_FIELD).stringValue());
+                System.out.println("  " + doc.getField(trecCarRepr.getTextField().name()).stringValue());
             }
 
             runfile.println(queryId + " Q0 " + docId + " " + searchRank + " " + searchScore + " Lucene-BM25");

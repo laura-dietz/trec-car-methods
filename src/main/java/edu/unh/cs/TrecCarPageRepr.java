@@ -12,30 +12,17 @@ import java.util.List;
  * Date: 1/5/18
  * Time: 3:22 PM
  */
-public interface TrecCarPageRepr {
+public interface TrecCarPageRepr extends TrecCarRepr {
     String idPage(Data.Page p);
 
     @NotNull
-    HashMap<PageField, List<String>> convertPage(Data.Page p);
+    HashMap<TrecCarSearchField, List<String>> convertPage(Data.Page p);
 
     @NotNull
     Document pageToLuceneDoc(Data.Page paragraph);
 
-    enum PageField {
-        Id(0), Text(1), Headings(2), Title(3), AnchorNames(4), DisambiguationNames(5), CategoryNames(6)
-        , InlinkIds(7), OutlinkIds(8);
-
-        private int value;
-        private PageField(int value) {
-            this.value = value;
-        }
-
-        private static PageField[] values = null;
-        public static PageField fromInt(int i) {
-            if (PageField.values == null) {
-                PageField.values = PageField.values();
-            }
-            return PageField.values[i];
-        }
+    @Override
+    default TrecCarSearchField[] getSearchFields() {
+        return TrecCarSearchField.values();
     }
 }
