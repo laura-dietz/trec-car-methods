@@ -84,7 +84,7 @@ public class TrecCarEntity implements TrecCarPageRepr {
         leadContent(p, content);
         result.put(TrecCarSearchField.Text, Collections.singletonList(content.toString()));
         result.put(TrecCarSearchField.Title, Collections.singletonList(p.getPageName()));
-        result.put(TrecCarSearchField.AnchorNames, p.getPageMetadata().getInlinkAnchors());
+        result.put(TrecCarSearchField.AnchorNames, freqListToStrings(p.getPageMetadata().getInlinkAnchors()));
         result.put(TrecCarSearchField.DisambiguationNames, p.getPageMetadata().getDisambiguationNames());
         result.put(TrecCarSearchField.CategoryNames, p.getPageMetadata().getCategoryNames());
         result.put(TrecCarSearchField.InlinkIds, p.getPageMetadata().getInlinkIds());
@@ -96,6 +96,17 @@ public class TrecCarEntity implements TrecCarPageRepr {
         // Todo finish
         return result;
     }
+
+    private List<String> freqListToStrings(ArrayList<Data.ItemWithFrequency<String>> inlinkAnchors) {
+        final ArrayList<String> result = new ArrayList<>();
+        for (Data.ItemWithFrequency<String> linkAnchor: inlinkAnchors){
+            for( int i=0; i< linkAnchor.getFrequency(); i++) {
+                result.add(linkAnchor.getItem());
+            }
+        }
+        return result;
+    }
+
 
     private List<String> getOutlinkIds(Data.Page p) {
         final ArrayList<String> result = new ArrayList<>();
