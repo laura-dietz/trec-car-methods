@@ -12,17 +12,16 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.*;
 import org.apache.lucene.search.similarities.BM25Similarity;
+import org.apache.lucene.search.similarities.LMDirichletSimilarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.jetbrains.annotations.NotNull;
 
+import javax.sql.rowset.serial.SerialRef;
 import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 /*
  * User: dietz
@@ -48,9 +47,10 @@ public class TrecCarLuceneQuery {
         public MyQueryBuilder(StandardAnalyzer standardAnalyzer, List<String> searchFields, TrecCarRepr trecCarRepr){
             analyzer = standardAnalyzer;
             this.searchFields = searchFields;
+            if(searchFields.size()>20) System.err.println("Warning: searching more than 20 fields, this may exceed the allowable number of 1024 boolean clauses.");
             textSearchField = trecCarRepr.getTextField().toString();
             this.trecCarRepr = trecCarRepr;
-            tokens = new ArrayList<>(128);
+            tokens = new ArrayList<>(64);
         }
 
         public BooleanQuery toQuery(String queryStr) throws IOException {
@@ -58,16 +58,13 @@ public class TrecCarLuceneQuery {
             TokenStream tokenStream = analyzer.tokenStream(textSearchField, new StringReader(queryStr));
             tokenStream.reset();
             tokens.clear();
-            while (tokenStream.incrementToken()) {
+            while (tokenStream.incrementToken() && tokens.size()<64) {
                 final String token = tokenStream.getAttribute(CharTermAttribute.class).toString();
                 tokens.add(token);
             }
             tokenStream.end();
             tokenStream.close();
             BooleanQuery.Builder booleanQuery = new BooleanQuery.Builder();
-//            for (String token : tokens) {
-//                booleanQuery.add(new TermQuery(new Term(textSearchField, token)), BooleanClause.Occur.SHOULD);
-//            }
 
             for (String searchField : this.searchFields) {
                 for (String token : tokens) {
@@ -81,12 +78,18 @@ public class TrecCarLuceneQuery {
     }
 
     private static void usage() {
-        System.out.println("Command line parameters: (paragraph|page|entity|edgedoc)  (section|page) (run|display) OutlineCBOR INDEX RUNFile  [searchField1] [searchField2] ...\n" +
+        System.out.println("Command line parameters: (paragraph|page|entity|edgedoc) " +
+                " (section|page) (run|display) OutlineCBOR INDEX RUNFile" +
+                " (sectionPath|all|subtree|title|leafheading|interior)" +
+                " (bm25|ql) [searchField1] [searchField2] ...\n" +
                 "searchFields one of "+Arrays.toString(TrecCarRepr.TrecCarSearchField.values()));
         System.exit(-1);
     }
 //        System.out.println("Command line parameters: (paragraphs|pages)CBOR LuceneINDEX");
 
+
+    private static String queryModel;
+    private static String retrievalModel;
 
     public static void main(String[] args) throws IOException {
         System.setProperty("file.encoding", "UTF-8");
@@ -114,14 +117,18 @@ public class TrecCarLuceneQuery {
         final String indexPath = args[4];
         final String runFileName = args[5];
 
+        queryModel = args[6];
+        retrievalModel = args[7];
+
+
 
 
         List<String> searchFields = null;
-        if (args.length  > 6) searchFields = Arrays.asList(Arrays.copyOfRange(args, 6, args.length));
+        if (args.length  > 8) searchFields = Arrays.asList(Arrays.copyOfRange(args, 8, args.length));
 
         System.out.println("Index loaded from "+indexPath+"/"+cfg.getIndexConfig().getIndexName());
         IndexSearcher searcher = setupIndexSearcher(indexPath, cfg.getIndexConfig().indexName);
-        searcher.setSimilarity(new BM25Similarity());
+        searcher.setSimilarity("bm25".equals(retrievalModel) ? new BM25Similarity() : new LMDirichletSimilarity(2500));
 
         List<String> searchFieldsUsed;
         if (searchFields == null) searchFieldsUsed = cfg.getIndexConfig().getSearchFields();
@@ -129,6 +136,17 @@ public class TrecCarLuceneQuery {
 
 
         final MyQueryBuilder queryBuilder = new MyQueryBuilder(new StandardAnalyzer(), searchFieldsUsed, icfg.trecCarRepr );
+        final QueryBuilder.QueryStringBuilder queryStringBuilder =
+                ("sectionpath".equals(queryModel))? new QueryBuilder.SectionPathQueryStringBuilder() :
+                        ("all".equals(queryModel) ? new QueryBuilder.OutlineQueryStringBuilder():
+                            ("subtree".equals(queryModel) ? new QueryBuilder.SubtreeQueryStringBuilder():
+                               ("title".equals(queryModel) ? new QueryBuilder.TitleQueryStringBuilder():
+                                   ("leafheading".equals(queryModel) ? new QueryBuilder.LeafHeadingQueryStringBuilder():
+                                       ("interior".equals(queryModel) ? new QueryBuilder.InteriorHeadingQueryStringBuilder():
+                                         new QueryBuilder.SectionPathQueryStringBuilder()
+                                   )))));
+
+
 
         final PrintWriter runfile = new PrintWriter(runFileName);
 
@@ -140,19 +158,19 @@ public class TrecCarLuceneQuery {
                     System.out.println();
                     System.out.println(Data.sectionPathId(page.getPageId(), sectionPath) + "   \t " + Data.sectionPathHeadings(sectionPath));
 
-                    final String queryStr = buildSectionQueryStr(page, sectionPath);
+                    final String queryStr = queryStringBuilder.buildSectionQueryStr(page, sectionPath);
                     final String queryId = Data.sectionPathId(page.getPageId(), sectionPath);
                     oneQuery(searcher, queryBuilder, queryStr, queryId, cfg.isOutputAsRun(), runfile);
                 }
             }
             System.out.println();
         }
-        else if(!cfg.queryAsSection){
+        else { //if(!cfg.queryAsSection){
             final FileInputStream fileInputStream3 = new FileInputStream(new File(queryCborFile));
             for (Data.Page page : DeserializeData.iterableAnnotations(fileInputStream3)) {
                     if (!cfg.outputAsRun)  System.out.println("\n\nPage: "+page.getPageId());
 
-                    final String queryStr = buildSectionQueryStr(page, Collections.emptyList());
+                final String queryStr = queryStringBuilder.buildSectionQueryStr(page, Collections.emptyList());
                     final String queryId = page.getPageId();
                     oneQuery(searcher, queryBuilder, queryStr, queryId, cfg.isOutputAsRun(), runfile);
             }
@@ -184,7 +202,7 @@ public class TrecCarLuceneQuery {
                 System.out.println("  " + doc.getField(trecCarRepr.getTextField().name()).stringValue());
             }
 
-            runfile.println(queryId + " Q0 " + docId + " " + searchRank + " " + searchScore + " Lucene-BM25");
+            runfile.println(queryId + " Q0 " + docId + " " + searchRank + " " + searchScore + " Lucene-"+queryModel+"-"+retrievalModel);
         }
     }
 
@@ -194,16 +212,6 @@ public class TrecCarLuceneQuery {
         Directory indexDir = FSDirectory.open(path);
         IndexReader reader = DirectoryReader.open(indexDir);
         return new IndexSearcher(reader);
-    }
-
-    @NotNull
-    private static String buildSectionQueryStr(Data.Page page, List<Data.Section> sectionPath) {
-        StringBuilder queryStr = new StringBuilder();
-        queryStr.append(page.getPageName());
-        for (Data.Section section: sectionPath) {
-            queryStr.append(" ").append(section.getHeading());
-        }
-        return queryStr.toString();
     }
 
 
