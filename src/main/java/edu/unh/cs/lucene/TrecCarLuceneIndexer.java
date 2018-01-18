@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.Iterator;
+import java.util.List;
 
 /*
  * User: dietz
@@ -31,7 +32,7 @@ import java.util.Iterator;
 public class TrecCarLuceneIndexer {
 
     private static void usage() {
-        System.out.println("Command line parameters: (paragraph|page|entity|edgedoc) CBOR LuceneINDEX");
+        System.out.println("Command line parameters: (paragraph|page|entity|edgedoc|ecm) CBOR LuceneINDEX");
         System.exit(-1);
     }
 
@@ -58,29 +59,31 @@ public class TrecCarLuceneIndexer {
 
 
         if(cfg.isPageConfig){
-            pageMode(cborFile, indexPath, cfg.getTrecCarPageRepr(), setupIndexWriter(indexPath, cfg.getIndexName()));
+            pageMode(cborFile, indexPath, cfg.getTrecCarPageRepr(), setupIndexWriter(indexPath, cfg.getIndexName()), cfg);
         } else {
-            paragraphMode(cborFile, indexPath,  cfg.getTrecCarParaRepr(), setupIndexWriter(indexPath, cfg.getIndexName()));
+            paragraphMode(cborFile, indexPath,  cfg.getTrecCarParaRepr(), setupIndexWriter(indexPath, cfg.getIndexName()), cfg);
         }
         System.out.println("Index written to "+indexPath+"/"+cfg.getIndexName());
 
         }
 
-    private static void pageMode(String pagesCborFile, String indexPath, TrecCarPageRepr trecCarPageRepr, IndexWriter indexWriter) throws IOException {
+    private static void pageMode(String pagesCborFile, String indexPath, TrecCarPageRepr trecCarPageRepr, IndexWriter indexWriter, TrecCarLuceneConfig.LuceneIndexConfig cfg) throws IOException {
         final FileInputStream fileInputStream = new FileInputStream(new File(pagesCborFile));
 
         System.out.println("Creating page index in "+indexPath);
 
         final Iterator<Data.Page> paragraphIterator = DeserializeData.iterAnnotations(fileInputStream);
 
-        for (int i=1; paragraphIterator.hasNext(); i++){
+        int i = 1;
+        while(paragraphIterator.hasNext()){
             final Data.Page page = paragraphIterator.next();
-            final Document doc = trecCarPageRepr.pageToLuceneDoc(page);
-            indexWriter.addDocument(doc);
+            final List<Document> docs = trecCarPageRepr.pageToLuceneDoc(page);
+            indexWriter.addDocuments(docs);
             if (i % 10000 == 0) {
                 System.out.print('.');
                 indexWriter.commit();
             }
+            i+= docs.size();
         }
 
         System.out.println("\n Done indexing.");
@@ -89,7 +92,7 @@ public class TrecCarLuceneIndexer {
         indexWriter.close();
     }
 
-    private static void paragraphMode(String paragraphCborFile, String indexPath, TrecCarParagraph trecCarParaRepr, IndexWriter indexWriter1) throws IOException {
+    private static void paragraphMode(String paragraphCborFile, String indexPath, TrecCarParagraph trecCarParaRepr, IndexWriter indexWriter1, TrecCarLuceneConfig.LuceneIndexConfig cfg) throws IOException {
         final FileInputStream fileInputStream2 = new FileInputStream(new File(paragraphCborFile));
 
         System.out.println("Creating paragraph index in "+indexPath);

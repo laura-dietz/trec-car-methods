@@ -6,6 +6,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * User: dietz
@@ -16,10 +17,10 @@ public interface TrecCarPageRepr extends TrecCarRepr {
     String idPage(Data.Page p);
 
     @NotNull
-    HashMap<TrecCarSearchField, List<String>> convertPage(Data.Page p);
+    Map<String, HashMap<TrecCarSearchField, List<String>>> convertPage(Data.Page p);
 
     @NotNull
-    Document pageToLuceneDoc(Data.Page paragraph);
+    List<Document> pageToLuceneDoc(Data.Page paragraph);
 
     @Override
     default TrecCarSearchField[] getSearchFields() {

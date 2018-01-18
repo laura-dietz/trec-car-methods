@@ -9,7 +9,7 @@ public interface TrecCarRepr {
 
     enum TrecCarSearchField {
         Id(0), Text(1), Headings(2), Title(3), AnchorNames(4), DisambiguationNames(5), CategoryNames(6)
-        , InlinkIds(7), OutlinkIds(8), EntityLinks(9);
+        , InlinkIds(7), OutlinkIds(8), EntityLinks(9), Entity(10), LeadText(11);
 
         private int value;
         private TrecCarSearchField(int value) {

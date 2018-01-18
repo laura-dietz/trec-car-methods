@@ -7,10 +7,7 @@ import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 /**
  * A search index representation of a trec car paragraph
@@ -33,41 +30,40 @@ public class TrecCarEntity implements TrecCarPageRepr {
     }
 
     @Override
-    public String idPage(Data.Page p){
+    public String idPage(Data.Page p) {
         return p.getPageId();
     }
 
 
-
-    private static void paragraphContent(Data.Para paragraph, StringBuilder content){
+    private static void paragraphContent(Data.Para paragraph, StringBuilder content) {
         content.append(paragraph.getParagraph().getTextOnly()).append('\n');
     }
 
 
-
-    private static void leadContent(Data.Page page, StringBuilder content){
+    private static void leadContent(Data.Page page, StringBuilder content) {
         content.append(page.getPageName()).append('\n');
 
-        for(Data.PageSkeleton skel: page.getSkeleton()){
-            if(skel instanceof Data.Para) paragraphContent((Data.Para) skel, content);
-            else {}    // ignore other
+        for (Data.PageSkeleton skel : page.getSkeleton()) {
+            if (skel instanceof Data.Para) paragraphContent((Data.Para) skel, content);
+            else {
+            }    // ignore other
+        }
+    }
+
+
+    private static void outLinkIds(List<Data.PageSkeleton> skels, ArrayList<String> content) {
+        for (Data.PageSkeleton skel : skels) {
+            if (skel instanceof Data.Para) paragraphOutlinkIds(((Data.Para) skel).getParagraph(), content);
+            if (skel instanceof Data.Section) outLinkIds(((Data.Section) skel).getChildren(), content);
+            else {
+            }    // ignore other
         }
 
     }
 
 
-    private static void outLinkIds(List<Data.PageSkeleton> skels, ArrayList<String> content){
-        for(Data.PageSkeleton skel: skels){
-            if(skel instanceof Data.Para) paragraphOutlinkIds(((Data.Para) skel).getParagraph(), content);
-            if(skel instanceof Data.Section) outLinkIds(((Data.Section) skel).getChildren(), content);
-            else {}    // ignore other
-        }
-
-    }
-
-
-    private static void paragraphOutlinkIds(Data.Paragraph p, ArrayList<String> content){
-        for(Data.ParaBody body: p.getBodies()){
+    private static void paragraphOutlinkIds(Data.Paragraph p, ArrayList<String> content) {
+        for (Data.ParaBody body : p.getBodies()) {
             if (body instanceof Data.ParaLink) {
                 Data.ParaLink link = (Data.ParaLink) body;
                 content.add(link.getPageId());
@@ -78,7 +74,7 @@ public class TrecCarEntity implements TrecCarPageRepr {
 
     @Override
     @NotNull
-    public HashMap<TrecCarSearchField, List<String>> convertPage(Data.Page p){
+    public Map<String, HashMap<TrecCarSearchField, List<String>>> convertPage(Data.Page p) {
         final HashMap<TrecCarSearchField, List<String>> result = new HashMap<>();
         final StringBuilder content = new StringBuilder();
         leadContent(p, content);
@@ -94,13 +90,13 @@ public class TrecCarEntity implements TrecCarPageRepr {
         result.put(TrecCarSearchField.OutlinkIds, outlinks);
 
         // Todo finish
-        return result;
+        return Collections.singletonMap(idPage(p), result);
     }
 
     private List<String> freqListToStrings(ArrayList<Data.ItemWithFrequency<String>> inlinkAnchors) {
         final ArrayList<String> result = new ArrayList<>();
-        for (Data.ItemWithFrequency<String> linkAnchor: inlinkAnchors){
-            for( int i=0; i< linkAnchor.getFrequency(); i++) {
+        for (Data.ItemWithFrequency<String> linkAnchor : inlinkAnchors) {
+            for (int i = 0; i < linkAnchor.getFrequency(); i++) {
                 result.add(linkAnchor.getItem());
             }
         }
@@ -116,14 +112,26 @@ public class TrecCarEntity implements TrecCarPageRepr {
 
     @Override
     @NotNull
-    public Document pageToLuceneDoc(Data.Page paragraph) {
-        final HashMap<TrecCarSearchField, List<String>> repr = convertPage(paragraph);
-        String id = idPage(paragraph);
+    public List<Document> pageToLuceneDoc(Data.Page page) {
+        final Map<String, HashMap<TrecCarSearchField, List<String>>> reprs = convertPage(page);
+        final List<Document> docs = new ArrayList<>();
+
+        for (String id : reprs.keySet()) {
+            final Document doc = singlePageToLuceneDoc(id, reprs.get(id));
+            docs.add(doc);
+        }
+
+        return docs;
+
+    }
+
+    @NotNull
+    private Document singlePageToLuceneDoc(String id, HashMap<TrecCarSearchField, List<String>> repr) {
         final Document doc = new Document();
         doc.add(new StringField(getIdField().name(), id, Field.Store.YES));  // don't tokenize this!
 
-        for(TrecCarSearchField field:repr.keySet()) {
-            if (field == TrecCarSearchField.OutlinkIds || field == TrecCarSearchField.InlinkIds){
+        for (TrecCarSearchField field : repr.keySet()) {
+            if (field == TrecCarSearchField.OutlinkIds || field == TrecCarSearchField.InlinkIds) {
                 // todo not sure how to add multiple of these without being butchered by the standard analyser
                 // StringField would take it as a single token, but that's also not really what we want here.
                 doc.add(new TextField(field.name(), String.join("\n", repr.get(field)), Field.Store.YES));
@@ -133,7 +141,4 @@ public class TrecCarEntity implements TrecCarPageRepr {
         }
         return doc;
     }
-
-
-
 }

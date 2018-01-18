@@ -7,9 +7,7 @@ import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 /**
  * A search index representation of a trec car paragraph
@@ -72,7 +70,7 @@ public class TrecCarPage implements TrecCarPageRepr {
     }
 
     @NotNull
-    public HashMap<TrecCarSearchField, List<String>> convertPage(Data.Page p){
+    public Map<String, HashMap<TrecCarSearchField, List<String>>> convertPage(Data.Page p){
         final HashMap<TrecCarSearchField, List<String>> result = new HashMap<>();
         final StringBuilder content = new StringBuilder();
         pageContent(p, content);
@@ -84,13 +82,24 @@ public class TrecCarPage implements TrecCarPageRepr {
         result.put(TrecCarSearchField.Title, Collections.singletonList(p.getPageName()));
 
         // Todo finish
-        return result;
+        return  Collections.singletonMap(idPage(p), result);
+    }
+
+    @Override
+    @NotNull
+    public List<Document> pageToLuceneDoc(Data.Page page) {
+        final Map<String, HashMap<TrecCarSearchField, List<String>>> reprs = convertPage(page);
+        final List<Document> docs = new ArrayList<>();
+
+        for (String id : reprs.keySet()) {
+            final Document doc = singlePageToLuceneDoc(id, reprs.get(id));
+            docs.add(doc);
+        }
+        return docs;
     }
 
     @NotNull
-    public Document pageToLuceneDoc(Data.Page paragraph) {
-        final HashMap<TrecCarSearchField, List<String>> repr = convertPage(paragraph);
-        String id = idPage(paragraph);
+    private Document singlePageToLuceneDoc(String id, HashMap<TrecCarSearchField, List<String>> repr) {
         final Document doc = new Document();
         doc.add(new StringField(getIdField().name(), id, Field.Store.YES));  // don't tokenize this!
 

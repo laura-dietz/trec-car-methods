@@ -25,6 +25,9 @@ public class TrecCarLuceneConfig {
         else if (representation.equals("pages")) {
             cfg = pageConfig();
         }
+        else if (representation.equals("ecm")) {
+            cfg = ecmConfig();
+        }
         return cfg;
     }
 
@@ -34,6 +37,7 @@ public class TrecCarLuceneConfig {
         TrecCarRepr trecCarRepr = null;
         boolean isPageConfig = false;
         private List<String> searchFields;
+        public boolean emitsList = false;
 
         LuceneIndexConfig() {
         }
@@ -72,6 +76,14 @@ public class TrecCarLuceneConfig {
         public List<String> getSearchFields() {
             return searchFields;
         }
+
+        public boolean isPageConfig() {
+            return isPageConfig;
+        }
+
+        public boolean isEmitsList() {
+            return emitsList;
+        }
     }
 
     public static LuceneIndexConfig paragraphConfig() {
@@ -97,6 +109,16 @@ public class TrecCarLuceneConfig {
         config.indexName = "entity.lucene";
         config.trecCarRepr = new TrecCarEntity();
         config.isPageConfig = true;
+        config.setSearchFields(config.getDefaultSearchFields());
+        return config;
+    }
+
+    public static LuceneIndexConfig ecmConfig() {
+        final LuceneIndexConfig config = new LuceneIndexConfig();
+        config.indexName = "ecm.lucene";
+        config.trecCarRepr = new TrecCarEcm();
+        config.isPageConfig = true;
+        config.emitsList = true;
         config.setSearchFields(config.getDefaultSearchFields());
         return config;
     }
