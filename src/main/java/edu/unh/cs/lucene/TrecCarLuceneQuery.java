@@ -98,7 +98,7 @@ public class TrecCarLuceneQuery {
             usage();
         }
         if("--tool-version".equals(args[0])) {
-            System.out.println("1");
+            System.out.println("2");
             System.exit(0);
         }
 
