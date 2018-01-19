@@ -7,9 +7,7 @@ import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.document.Document;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.Term;
+import org.apache.lucene.index.*;
 import org.apache.lucene.search.*;
 import org.apache.lucene.search.similarities.BM25Similarity;
 import org.apache.lucene.search.similarities.LMDirichletSimilarity;
@@ -17,7 +15,6 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.jetbrains.annotations.NotNull;
 
-import javax.sql.rowset.serial.SerialRef;
 import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
@@ -53,6 +50,41 @@ public class TrecCarLuceneQuery {
             tokens = new ArrayList<>(64);
         }
 
+        public void addTokens(String content, Float weight, Map<String,Float> wordFreqs) throws IOException {
+            TokenStream tokenStream = analyzer.tokenStream(textSearchField, new StringReader(content));
+            tokenStream.reset();
+            while (tokenStream.incrementToken()) {
+                final String token = tokenStream.getAttribute(CharTermAttribute.class).toString();
+                wordFreqs.compute(token, (t, oldV) ->
+                                         (oldV==null)? weight : oldV + weight
+                );
+            }
+            tokenStream.end();
+            tokenStream.close();
+        }
+
+        public BooleanQuery toRm3Query(String queryStr, List<Map.Entry<String, Float>> relevanceModel) throws IOException {
+
+            TokenStream tokenStream = analyzer.tokenStream(textSearchField, new StringReader(queryStr));
+            tokenStream.reset();
+            tokens.clear();
+            while (tokenStream.incrementToken() && tokens.size()<64) {
+                final String token = tokenStream.getAttribute(CharTermAttribute.class).toString();
+                tokens.add(token);
+            }
+            tokenStream.end();
+            tokenStream.close();
+            BooleanQuery.Builder booleanQuery = new BooleanQuery.Builder();
+
+            for (String searchField : this.searchFields) {
+                for (String token : tokens) {
+                    booleanQuery.add(new BoostQuery(new TermQuery(new Term(searchField, token)),1.0f), BooleanClause.Occur.SHOULD);
+                }
+            }
+
+
+            return booleanQuery.build();
+        }
         public BooleanQuery toQuery(String queryStr) throws IOException {
 
             TokenStream tokenStream = analyzer.tokenStream(textSearchField, new StringReader(queryStr));
@@ -75,13 +107,15 @@ public class TrecCarLuceneQuery {
 
             return booleanQuery.build();
         }
+
+
     }
 
     private static void usage() {
         System.out.println("Command line parameters: (paragraph|page|entity|edgedoc) " +
                 " (section|page) (run|display) OutlineCBOR INDEX RUNFile" +
                 " (sectionPath|all|subtree|title|leafheading|interior)" +
-                " (bm25|ql) [searchField1] [searchField2] ...\n" +
+                " (bm25|ql) (none|rm) [searchField1] [searchField2] ...\n" +
                 "searchFields one of "+Arrays.toString(TrecCarRepr.TrecCarSearchField.values()));
         System.exit(-1);
     }
@@ -90,6 +124,7 @@ public class TrecCarLuceneQuery {
 
     private static String queryModel;
     private static String retrievalModel;
+    private static String expansionModel;
 
     public static void main(String[] args) throws IOException {
         System.setProperty("file.encoding", "UTF-8");
@@ -102,7 +137,7 @@ public class TrecCarLuceneQuery {
             System.exit(0);
         }
 
-        if (args.length < 6)
+        if (args.length < 7)
             usage();
 
         final String representation = args[0];
@@ -119,12 +154,13 @@ public class TrecCarLuceneQuery {
 
         queryModel = args[6];
         retrievalModel = args[7];
+        expansionModel = args[8];
 
 
 
 
         List<String> searchFields = null;
-        if (args.length  > 8) searchFields = Arrays.asList(Arrays.copyOfRange(args, 8, args.length));
+        if (args.length  > 9) searchFields = Arrays.asList(Arrays.copyOfRange(args, 8, args.length));
 
         System.out.println("Index loaded from "+indexPath+"/"+cfg.getIndexConfig().getIndexName());
         IndexSearcher searcher = setupIndexSearcher(indexPath, cfg.getIndexConfig().indexName);
@@ -160,7 +196,12 @@ public class TrecCarLuceneQuery {
 
                     final String queryStr = queryStringBuilder.buildSectionQueryStr(page, sectionPath);
                     final String queryId = Data.sectionPathId(page.getPageId(), sectionPath);
-                    oneQuery(searcher, queryBuilder, queryStr, queryId, cfg.isOutputAsRun(), runfile);
+
+                    if ("rm".equals(expansionModel)){
+                         oneExpandedQuery(searcher, queryBuilder, queryStr, queryId, cfg.isOutputAsRun(), runfile);
+                    } else {
+                        oneQuery(searcher, queryBuilder, queryStr, queryId, cfg.isOutputAsRun(), runfile);
+                    }
                 }
             }
             System.out.println();
@@ -170,14 +211,80 @@ public class TrecCarLuceneQuery {
             for (Data.Page page : DeserializeData.iterableAnnotations(fileInputStream3)) {
                     if (!cfg.outputAsRun)  System.out.println("\n\nPage: "+page.getPageId());
 
-                final String queryStr = queryStringBuilder.buildSectionQueryStr(page, Collections.emptyList());
+                    final String queryStr = queryStringBuilder.buildSectionQueryStr(page, Collections.emptyList());
                     final String queryId = page.getPageId();
-                    oneQuery(searcher, queryBuilder, queryStr, queryId, cfg.isOutputAsRun(), runfile);
+                    if ("rm".equals(expansionModel)){
+                        oneExpandedQuery(searcher, queryBuilder, queryStr, queryId, cfg.isOutputAsRun(), runfile);
+                    } else {
+                        oneQuery(searcher, queryBuilder, queryStr, queryId, cfg.isOutputAsRun(), runfile);
+                    }
             }
             System.out.println();
         }
 
         runfile.close();
+
+    }
+
+
+
+    private static List<Map.Entry<String, Float>> relevanceModel(IndexSearcher searcher, MyQueryBuilder queryBuilder, String queryStr, int takeKDocs, int takeKTerms) throws IOException {
+        final TrecCarRepr trecCarRepr = queryBuilder.trecCarRepr;
+        final BooleanQuery booleanQuery = queryBuilder.toQuery(queryStr);
+        TopDocs tops = searcher.search(booleanQuery, takeKDocs);
+        ScoreDoc[] scoreDoc = tops.scoreDocs;
+
+        final Map<String, Float> wordFreqs = new HashMap<>();
+        queryBuilder.addTokens(queryStr, 1.0f, wordFreqs);
+
+        // guess if we have log scores...
+        boolean useLog = false;
+        for (ScoreDoc score : scoreDoc) {
+            if (score.score < 0.0) useLog = true;
+            break;
+        }
+
+        // compute score normalizer
+        double normalizer = 0.0;
+        for (ScoreDoc score : scoreDoc) {
+            if (useLog) normalizer += Math.exp(score.score);
+            else normalizer += score.score;
+        }
+        if (useLog) normalizer = Math.log(normalizer);
+
+        for (ScoreDoc score : scoreDoc) {
+            Double weight = useLog ? (score.score - normalizer) : (score.score / normalizer);
+            final Document doc = searcher.doc(score.doc); // to access stored content
+            String fulltext = doc.getField(trecCarRepr.getTextField().name()).stringValue();
+
+            queryBuilder.addTokens(fulltext, weight.floatValue(), wordFreqs);
+        }
+
+        ArrayList<Map.Entry<String, Float>> allWordFreqs = new ArrayList<>(wordFreqs.entrySet());
+        allWordFreqs.sort(new Comparator<Map.Entry<String, Float>>() {
+            @Override
+            public int compare(Map.Entry<String, Float> kv1, Map.Entry<String, Float> kv2) {
+                return Float.compare(kv2.getValue(), kv1.getValue()); // sort descending by flipping
+            }
+        });
+
+        List<Map.Entry<String, Float>> expansionTerms = allWordFreqs.subList(0, Math.min(takeKTerms, allWordFreqs.size()));
+
+        System.out.println("Expansions "+expansionTerms.toString());
+        return expansionTerms;
+    }
+
+    private static void oneExpandedQuery(IndexSearcher searcher, MyQueryBuilder queryBuilder, String queryStr, String queryId, boolean outputAsRun, PrintWriter runfile) throws IOException {
+        final TrecCarRepr trecCarRepr = queryBuilder.trecCarRepr;
+
+        final List<Map.Entry<String, Float>> relevanceModel = relevanceModel(searcher, queryBuilder, queryStr, 20, 20);
+        final BooleanQuery booleanQuery = queryBuilder.toRm3Query(queryStr, relevanceModel);
+
+        TopDocs tops = searcher.search(booleanQuery, 100);
+        ScoreDoc[] scoreDoc = tops.scoreDocs;
+        System.out.println("Found "+scoreDoc.length+" RM3 results.");
+
+        outputQueryResults(searcher, queryId, outputAsRun, runfile, trecCarRepr, scoreDoc);
 
     }
 
@@ -188,6 +295,10 @@ public class TrecCarLuceneQuery {
         ScoreDoc[] scoreDoc = tops.scoreDocs;
         System.out.println("Found "+scoreDoc.length+" results.");
 
+        outputQueryResults(searcher, queryId, outputAsRun, runfile, trecCarRepr, scoreDoc);
+    }
+
+    private static void outputQueryResults(IndexSearcher searcher, String queryId, boolean outputAsRun, PrintWriter runfile, TrecCarRepr trecCarRepr, ScoreDoc[] scoreDoc) throws IOException {
         for (int i = 0; i < scoreDoc.length; i++) {
             ScoreDoc score = scoreDoc[i];
             final Document doc = searcher.doc(score.doc); // to access stored content

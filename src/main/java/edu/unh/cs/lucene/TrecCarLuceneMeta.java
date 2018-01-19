@@ -10,21 +10,26 @@ import java.util.Arrays;
  */
 public class TrecCarLuceneMeta {
     public static void main(String[] args) throws IOException {
-        String[] newargs = new String[8];
+        String[] newargs = new String[9];
         System.arraycopy(args,0,newargs, 0, 6 );
 
         for (String queryModel: new String[]{"sectionPath", "all", "subtree", "title", "leafheading","interior"}){
             newargs[6] =queryModel;
             for (String retrievalModel: new String[]{"bm25","ql"}) {
                 newargs[7] = retrievalModel;
-                edu.unh.cs.lucene.TrecCarLuceneQuery.main(newargs);
+                for (String expansionModel: new String[]{"none", "rm"}) {
+                    newargs[8] = expansionModel;
 
-                System.out.println("====================================");
-                System.out.println("====================================");
-                System.out.println("====================================");
-                System.out.println("====================================");
-                System.out.println("queryModel = " + queryModel);
-                System.out.println("retrievalModel = " + retrievalModel);
+                    System.out.println("====================================");
+                    System.out.println("====================================");
+                    System.out.println("====================================");
+                    System.out.println("====================================");
+                    System.out.println("queryModel = " + queryModel);
+                    System.out.println("retrievalModel = " + retrievalModel);
+                    System.out.println("expansionModel = " + expansionModel);
+
+                    edu.unh.cs.lucene.TrecCarLuceneQuery.main(newargs);
+                }
             }
 
         }
