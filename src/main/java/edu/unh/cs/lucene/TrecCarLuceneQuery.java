@@ -82,6 +82,15 @@ public class TrecCarLuceneQuery {
                 }
             }
 
+            // add RM3 terms
+            for (String searchField : this.searchFields) {
+                for (Map.Entry<String, Float> stringFloatEntry : relevanceModel.subList(0, Math.min(relevanceModel.size(), (64-tokens.size())))) {
+                    String token = stringFloatEntry.getKey();
+                    float weight = stringFloatEntry.getValue();
+                    booleanQuery.add(new BoostQuery(new TermQuery(new Term(searchField, token)),weight), BooleanClause.Occur.SHOULD);
+                }
+            }
+
 
             return booleanQuery.build();
         }
