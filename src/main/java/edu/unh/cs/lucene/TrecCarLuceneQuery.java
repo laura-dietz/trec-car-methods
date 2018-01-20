@@ -124,7 +124,7 @@ public class TrecCarLuceneQuery {
         System.out.println("Command line parameters: (paragraph|page|entity|edgedoc) " +
                 " (section|page) (run|display) OutlineCBOR INDEX RUNFile" +
                 " (sectionPath|all|subtree|title|leafheading|interior)" +
-                " (bm25|ql) (none|rm) [searchField1] [searchField2] ...\n" +
+                " (bm25|ql|default) (none|rm) [searchField1] [searchField2] ...\n" +
                 "searchFields one of "+Arrays.toString(TrecCarRepr.TrecCarSearchField.values()));
         System.exit(-1);
     }
@@ -173,7 +173,10 @@ public class TrecCarLuceneQuery {
 
         System.out.println("Index loaded from "+indexPath+"/"+cfg.getIndexConfig().getIndexName());
         IndexSearcher searcher = setupIndexSearcher(indexPath, cfg.getIndexConfig().indexName);
-        searcher.setSimilarity("bm25".equals(retrievalModel) ? new BM25Similarity() : new LMDirichletSimilarity(2500));
+
+        if ("bm25".equals(retrievalModel)) searcher.setSimilarity(new BM25Similarity());
+        else if ("ql".equals(retrievalModel)) searcher.setSimilarity(new LMDirichletSimilarity(1500));
+        // else default similarity
 
         List<String> searchFieldsUsed;
         if (searchFields == null) searchFieldsUsed = cfg.getIndexConfig().getSearchFields();

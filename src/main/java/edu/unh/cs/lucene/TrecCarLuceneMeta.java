@@ -15,7 +15,7 @@ public class TrecCarLuceneMeta {
 
         for (String queryModel: new String[]{"sectionPath", "all", "subtree", "title", "leafheading","interior"}){
             newargs[6] =queryModel;
-            for (String retrievalModel: new String[]{"bm25","ql"}) {
+            for (String retrievalModel: new String[]{"default", "bm25","ql"}) {
                 newargs[7] = retrievalModel;
                 for (String expansionModel: new String[]{"none", "rm"}) {
                     newargs[8] = expansionModel;
