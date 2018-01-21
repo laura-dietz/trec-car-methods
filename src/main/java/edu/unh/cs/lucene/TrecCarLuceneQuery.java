@@ -3,7 +3,9 @@ package edu.unh.cs.lucene;
 import edu.unh.cs.TrecCarRepr;
 import edu.unh.cs.treccar_v2.Data;
 import edu.unh.cs.treccar_v2.read_data.DeserializeData;
+import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.document.Document;
@@ -35,13 +37,13 @@ public class TrecCarLuceneQuery {
         TrecCarRepr trecCarParaRepr;
         String paragraphIndexName = "paragraph.lucene";
 
-        private final StandardAnalyzer analyzer;
+        private final Analyzer analyzer;
         private final List<String> searchFields;
         private final TrecCarRepr trecCarRepr;
         private List<String> tokens;
         private final String textSearchField;
 
-        public MyQueryBuilder(StandardAnalyzer standardAnalyzer, List<String> searchFields, TrecCarRepr trecCarRepr){
+        public MyQueryBuilder(Analyzer standardAnalyzer, List<String> searchFields, TrecCarRepr trecCarRepr){
             analyzer = standardAnalyzer;
             this.searchFields = searchFields;
             if(searchFields.size()>20) System.err.println("Warning: searching more than 20 fields, this may exceed the allowable number of 1024 boolean clauses.");
@@ -134,6 +136,7 @@ public class TrecCarLuceneQuery {
     private static String queryModel;
     private static String retrievalModel;
     private static String expansionModel;
+    private static String analyzer;
 
     public static void main(String[] args) throws IOException {
         System.setProperty("file.encoding", "UTF-8");
@@ -146,7 +149,7 @@ public class TrecCarLuceneQuery {
             System.exit(0);
         }
 
-        if (args.length < 7)
+        if (args.length < 9)
             usage();
 
         final String representation = args[0];
@@ -164,12 +167,13 @@ public class TrecCarLuceneQuery {
         queryModel = args[6];
         retrievalModel = args[7];
         expansionModel = args[8];
+        analyzer = args[9];
 
 
 
 
         List<String> searchFields = null;
-        if (args.length  > 9) searchFields = Arrays.asList(Arrays.copyOfRange(args, 8, args.length));
+        if (args.length  > 10) searchFields = Arrays.asList(Arrays.copyOfRange(args, 10, args.length));
 
         System.out.println("Index loaded from "+indexPath+"/"+cfg.getIndexConfig().getIndexName());
         IndexSearcher searcher = setupIndexSearcher(indexPath, cfg.getIndexConfig().indexName);
@@ -183,7 +187,11 @@ public class TrecCarLuceneQuery {
         else searchFieldsUsed = searchFields;
 
 
-        final MyQueryBuilder queryBuilder = new MyQueryBuilder(new StandardAnalyzer(), searchFieldsUsed, icfg.trecCarRepr );
+        final Analyzer queryAnalyzer = ("std".equals(analyzer))? new StandardAnalyzer():
+                ("english".equals(analyzer)? new EnglishAnalyzer(): new StandardAnalyzer());
+
+
+        final MyQueryBuilder queryBuilder = new MyQueryBuilder(queryAnalyzer, searchFieldsUsed, icfg.trecCarRepr );
         final QueryBuilder.QueryStringBuilder queryStringBuilder =
                 ("sectionpath".equals(queryModel))? new QueryBuilder.SectionPathQueryStringBuilder() :
                         ("all".equals(queryModel) ? new QueryBuilder.OutlineQueryStringBuilder():

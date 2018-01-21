@@ -4,6 +4,8 @@ import edu.unh.cs.TrecCarPageRepr;
 import edu.unh.cs.TrecCarParagraph;
 import edu.unh.cs.treccar_v2.Data;
 import edu.unh.cs.treccar_v2.read_data.DeserializeData;
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexWriter;
@@ -58,10 +60,13 @@ public class TrecCarLuceneIndexer {
         final String indexPath = args[2];
 
 
+        final String analyzer = (args.length >3)?args[3]:"std";
+
+
         if(cfg.isPageConfig){
-            pageMode(cborFile, indexPath, cfg.getTrecCarPageRepr(), setupIndexWriter(indexPath, cfg.getIndexName()), cfg);
+            pageMode(cborFile, indexPath, cfg.getTrecCarPageRepr(), setupIndexWriter(indexPath, cfg.getIndexName(), analyzer), cfg);
         } else {
-            paragraphMode(cborFile, indexPath,  cfg.getTrecCarParaRepr(), setupIndexWriter(indexPath, cfg.getIndexName()), cfg);
+            paragraphMode(cborFile, indexPath,  cfg.getTrecCarParaRepr(), setupIndexWriter(indexPath, cfg.getIndexName(), analyzer), cfg);
         }
         System.out.println("Index written to "+indexPath+"/"+cfg.getIndexName());
 
@@ -117,10 +122,14 @@ public class TrecCarLuceneIndexer {
 
 
     @NotNull
-    private static IndexWriter setupIndexWriter(String indexPath, String typeIndex) throws IOException {
+    private static IndexWriter setupIndexWriter(String indexPath, String typeIndex, String analyzer) throws IOException {
         Path path = FileSystems.getDefault().getPath(indexPath, typeIndex);
         Directory indexDir = FSDirectory.open(path);
-        IndexWriterConfig config = new IndexWriterConfig(new StandardAnalyzer());
+
+        final Analyzer queryAnalyzer = ("std".equals(analyzer))? new StandardAnalyzer():
+                ("english".equals(analyzer)? new EnglishAnalyzer(): new StandardAnalyzer());
+
+        IndexWriterConfig config = new IndexWriterConfig(queryAnalyzer);
         return new IndexWriter(indexDir, config);
     }
 }
