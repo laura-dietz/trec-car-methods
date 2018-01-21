@@ -77,13 +77,24 @@ public class TrecCarEntity implements TrecCarPageRepr {
     public Map<String, HashMap<TrecCarSearchField, List<String>>> convertPage(Data.Page p) {
         final HashMap<TrecCarSearchField, List<String>> result = new HashMap<>();
         final StringBuilder content = new StringBuilder();
+
         leadContent(p, content);
-        result.put(TrecCarSearchField.Text, Collections.singletonList(content.toString()));
+
+        List<String> fullText = new ArrayList<>();
+        fullText.add(p.getPageName());
+        fullText.add(content.toString());
+        fullText.addAll(freqListToStrings(p.getPageMetadata().getInlinkAnchors()));
+        fullText.addAll(p.getPageMetadata().getDisambiguationNames());
+        result.put(TrecCarSearchField.Text, fullText);
+
+        result.put(TrecCarSearchField.LeadText, Collections.singletonList(content.toString()));
         result.put(TrecCarSearchField.Title, Collections.singletonList(p.getPageName()));
         result.put(TrecCarSearchField.AnchorNames, freqListToStrings(p.getPageMetadata().getInlinkAnchors()));
         result.put(TrecCarSearchField.DisambiguationNames, p.getPageMetadata().getDisambiguationNames());
         result.put(TrecCarSearchField.CategoryNames, p.getPageMetadata().getCategoryNames());
         result.put(TrecCarSearchField.InlinkIds, p.getPageMetadata().getInlinkIds());
+
+
 
         final ArrayList<String> outlinks = new ArrayList<>();
         outLinkIds(p.getSkeleton(), outlinks);

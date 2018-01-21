@@ -211,6 +211,7 @@ public class TrecCarLuceneQuery {
         if(cfg.queryAsSection ) {
             final FileInputStream fileInputStream3 = new FileInputStream(new File(queryCborFile));
             for (Data.Page page : DeserializeData.iterableAnnotations(fileInputStream3)) {
+                HashSet<String> alreadyQueried = new HashSet<>();
                 System.out.println("\n\nPage: " + page.getPageId());
                 for (List<Data.Section> sectionPath : page.flatSectionPaths()) {
                     System.out.println();
@@ -218,19 +219,26 @@ public class TrecCarLuceneQuery {
 
                     final String queryStr = queryStringBuilder.buildSectionQueryStr(page, sectionPath);
                     final String queryId = Data.sectionPathId(page.getPageId(), sectionPath);
-                    expandedRetrievalModels(cfg, searcher, queryBuilder, runfile, queryStr, queryId);
+                    if(!alreadyQueried.contains(queryId)) {
+                        expandedRetrievalModels(cfg, searcher, queryBuilder, runfile, queryStr, queryId);
+                        alreadyQueried.add(queryId);
+                    }
                 }
             }
             System.out.println();
         }
         else { //if(!cfg.queryAsSection){
             final FileInputStream fileInputStream3 = new FileInputStream(new File(queryCborFile));
+            HashSet<String> alreadyQueried = new HashSet<>();
             for (Data.Page page : DeserializeData.iterableAnnotations(fileInputStream3)) {
-                    if (!cfg.outputAsRun)  System.out.println("\n\nPage: "+page.getPageId());
+                if (!cfg.outputAsRun)  System.out.println("\n\nPage: "+page.getPageId());
 
-                    final String queryStr = queryStringBuilder.buildSectionQueryStr(page, Collections.emptyList());
-                    final String queryId = page.getPageId();
-                expandedRetrievalModels(cfg, searcher, queryBuilder, runfile, queryStr, queryId);
+                final String queryStr = queryStringBuilder.buildSectionQueryStr(page, Collections.emptyList());
+                final String queryId = page.getPageId();
+                if(!alreadyQueried.contains(queryId)) {
+                    expandedRetrievalModels(cfg, searcher, queryBuilder, runfile, queryStr, queryId);
+                    alreadyQueried.add(queryId);
+                }
             }
             System.out.println();
         }
@@ -384,6 +392,7 @@ public class TrecCarLuceneQuery {
                 }
             }, entityFreqs);
 
+            HashSet<String> alreadyReturned = new HashSet<String>();
             int rank = 1;
             for (Map.Entry<String, Float> expansionEntity : expansionEntities) {
                 final String entityId = expansionEntity.getKey();
@@ -391,8 +400,11 @@ public class TrecCarLuceneQuery {
                 runfile.println(queryId + " Q0 " + entityId + " " + rank+ " " + score+ " Lucene-ECM-"+queryModel+"-"+retrievalModel);
 
                 if(!outputAsRun) {
-                    System.out.println(entityId + " (" + rank + "):  SCORE " + score);
+                    if(!alreadyReturned.contains(entityId)){
+                        System.out.println(entityId + " (" + rank + "):  SCORE " + score);
+                    }
                 }
+                alreadyReturned.add(entityId);
 
                 rank ++;
             }
@@ -401,6 +413,7 @@ public class TrecCarLuceneQuery {
     }
 
     private static void outputQueryResults(IndexSearcher searcher, String queryId, boolean outputAsRun, PrintWriter runfile, TrecCarRepr trecCarRepr, ScoreDoc[] scoreDoc) throws IOException {
+        HashSet<String> alreadyReturned = new HashSet<String>();
         for (int i = 0; i < scoreDoc.length; i++) {
             ScoreDoc score = scoreDoc[i];
             final Document doc = searcher.doc(score.doc); // to access stored content
@@ -415,7 +428,10 @@ public class TrecCarLuceneQuery {
                 System.out.println("  " + doc.getField(trecCarRepr.getTextField().name()).stringValue());
             }
 
-            runfile.println(queryId + " Q0 " + docId + " " + searchRank + " " + searchScore + " Lucene-"+queryModel+"-"+retrievalModel);
+            if(!alreadyReturned.contains(docId)){
+                runfile.println(queryId + " Q0 " + docId + " " + searchRank + " " + searchScore + " Lucene-"+queryModel+"-"+retrievalModel);
+            }
+            alreadyReturned.add(docId);
         }
     }
 
