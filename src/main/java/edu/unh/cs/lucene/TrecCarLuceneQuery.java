@@ -21,6 +21,8 @@ import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /*
  * User: dietz
@@ -386,10 +388,24 @@ public class TrecCarLuceneQuery {
                 @Override
                 public Iterable<String> entries(Integer docInt) throws IOException {
                     final Document doc = searcher.doc(docInt); // to access stored content
-                    final IndexableField entities = doc.getField(TrecCarRepr.TrecCarSearchField.OutlinkIds.name());
-                    final String[] entityIds = entities.stringValue().split("\n");
-                    return Arrays.asList(entityIds);
-                }
+                    final IndexableField outLinks = doc.getField(TrecCarRepr.TrecCarSearchField.OutlinkIds.name());
+                    final IndexableField inLinks = doc.getField(TrecCarRepr.TrecCarSearchField.InlinkIds.name());
+                    if(outLinks!=null && inLinks != null) {
+                        final String[] outLinkIds = outLinks.stringValue().split("\n");
+                        final String[] inLinkIds = inLinks.stringValue().split("\n");
+                        final ArrayList<String> result = new ArrayList<>(Arrays.asList(outLinkIds));
+                        result.addAll(Arrays.asList(inLinkIds));
+                        return result;
+                    } else if(outLinks!=null && inLinks == null) {
+                        final String[] outLinkIds = outLinks.stringValue().split("\n");
+                        return Arrays.asList(outLinkIds);
+                    } else if(inLinks != null && outLinks == null) {
+                        final String[] inLinkIds = inLinks.stringValue().split("\n");
+                        return Arrays.asList(inLinkIds);
+                    } else {
+                        return Collections.emptyList();
+                    }
+               }
             }, entityFreqs);
 
             HashSet<String> alreadyReturned = new HashSet<String>();
