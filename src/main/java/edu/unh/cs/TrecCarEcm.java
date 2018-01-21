@@ -63,7 +63,7 @@ public class TrecCarEcm implements TrecCarPageRepr {
         final HashMap<TrecCarSearchField, List<String>> result = new HashMap<>();
         result.put(TrecCarSearchField.Text, Collections.singletonList(ecm.getText()));
         result.put(TrecCarSearchField.OutlinkIds, ecm.getAllEntityIds());
-        result.put(TrecCarSearchField.EntityLinks, ecm.allEntities);
+        result.put(TrecCarSearchField.EntityLinks, ecm.getAllEntities());
         result.put(TrecCarSearchField.Title, Collections.singletonList(ecm.getPageTitle()));
         result.put(TrecCarSearchField.Headings, ecm.getHeadings());
         result.put(TrecCarSearchField.LeadText, ecm.getLeadText());

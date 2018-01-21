@@ -18,7 +18,7 @@ public class TrecCarLuceneMeta {
             newargs[6] = queryModel;
             for (String retrievalModel : new String[]{"default", "bm25", "ql"}) {
                 newargs[7] = retrievalModel;
-                for (String expansionModel : new String[]{"none", "rm"}) {
+                for (String expansionModel : new String[]{"ecm", "ecm-rm","none", "rm"}) {
                     newargs[8] = expansionModel;
                     for (String analyzer : new String[]{"std", "english"}) {
 
