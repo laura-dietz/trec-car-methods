@@ -16,12 +16,11 @@ public class TrecCarLuceneMeta {
 
         for (String queryModel : new String[]{"title"}) { //"sectionPath", "all", "subtree", "title", "leafheading","interior"}){
             newargs[6] = queryModel;
-            for (String retrievalModel : new String[]{"default", "bm25", "ql"}) {
+            for (String retrievalModel : new String[]{"bm25", "ql"}) {
                 newargs[7] = retrievalModel;
-                for (String expansionModel : new String[]{"ecm", "ecm-rm","none", "rm"}) {
+                for (String expansionModel : new String[]{"none", "rm", "ecm", "ecm-rm"}) {
                     newargs[8] = expansionModel;
                     for (String analyzer : new String[]{"std", "english"}) {
-
                         newargs[9] = analyzer;
                         for (String searchfield : new String[]{"Text", ""}) {
                             if (searchfield.length() > 0) {

@@ -123,7 +123,9 @@ public class EntityContextModel {
         List<String> result = new ArrayList<>();
         for(Data.ParaBody body: paragraph.getBodies()){
             if(body instanceof Data.ParaLink){
-                result.add(((Data.ParaLink) body).getPageId());
+                final String pageId = ((Data.ParaLink) body).getPageId();
+                assert(!pageId.isEmpty()):"Link with empty page id in paragraph: "+paragraph;
+                result.add(pageId);
             }
         }
         return result;
@@ -135,6 +137,7 @@ public class EntityContextModel {
             if (skel instanceof Data.Para) {
                 Data.Para para = (Data.Para) skel;
                 final String text = para.getParagraph().getTextOnly();
+                if(text.isEmpty()) System.err.println("Warning: empty paragraph text on page "+page.getPageId()+", paragraph "+para);
                 result.add(text);
             }
             else {
