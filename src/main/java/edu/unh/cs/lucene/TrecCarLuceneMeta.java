@@ -10,10 +10,11 @@ import java.util.Arrays;
  */
 public class TrecCarLuceneMeta {
     public static void main(String[] args) throws IOException {
-        String[] newargs = new String[11];
+        String[] newargs = new String[12];
         String[] newargs_;
         System.arraycopy(args, 0, newargs, 0, 6);
 
+        newargs[10]="10";
         for (String queryModel : new String[]{"title"}) { //"sectionPath", "all", "subtree", "title", "leafheading","interior"}){
             newargs[6] = queryModel;
             for (String retrievalModel : new String[]{"bm25", "ql"}) {
@@ -24,10 +25,10 @@ public class TrecCarLuceneMeta {
                         newargs[9] = analyzer;
                         for (String searchfield : new String[]{"Text", ""}) {
                             if (searchfield.length() > 0) {
-                                newargs[10] = searchfield;
+                                newargs[11] = searchfield;
                                 newargs_ = newargs;
                             } else {
-                                newargs_ = Arrays.copyOfRange(newargs, 0, 10);
+                                newargs_ = Arrays.copyOfRange(newargs, 0, 11);
                             }
 
                             System.out.println("====================================");

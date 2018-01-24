@@ -135,7 +135,7 @@ public class TrecCarLuceneQuery {
         System.out.println("Command line parameters: (paragraph|page|entity|ecm) " +
                 " (section|page) (run|display) OutlineCBOR INDEX RUNFile" +
                 " (sectionPath|all|subtree|title|leafheading|interior)" +
-                " (bm25|ql|default) (none|rm|ecm|ecm-rm) (std|english) [searchField1] [searchField2] ...\n" +
+                " (bm25|ql|default) (none|rm|ecm|ecm-rm) (std|english) numResults [searchField1] [searchField2] ...\n" +
                 "searchFields one of "+Arrays.toString(TrecCarRepr.TrecCarSearchField.values()));
         System.exit(-1);
     }
@@ -146,6 +146,7 @@ public class TrecCarLuceneQuery {
     private static String retrievalModel;
     private static String expansionModel;
     private static String analyzer;
+    private static int numResults;
 
     public static void main(String[] args) throws IOException {
         System.setProperty("file.encoding", "UTF-8");
@@ -179,10 +180,11 @@ public class TrecCarLuceneQuery {
         analyzer = args[9];
 
 
+        numResults = Integer.parseInt(args[10]);
 
 
         List<String> searchFields = null;
-        if (args.length  > 10) searchFields = Arrays.asList(Arrays.copyOfRange(args, 10, args.length));
+        if (args.length  > 11) searchFields = Arrays.asList(Arrays.copyOfRange(args, 11, args.length));
 
         System.out.println("Index loaded from "+indexPath+"/"+cfg.getIndexConfig().getIndexName());
         IndexSearcher searcher = setupIndexSearcher(indexPath, cfg.getIndexConfig().indexName);
@@ -367,7 +369,7 @@ public class TrecCarLuceneQuery {
         final List<Map.Entry<String, Float>> relevanceModel = relevanceModel(searcher, queryBuilder, queryStr, 20, 20, debugStream);
         final BooleanQuery booleanQuery = queryBuilder.toRm3Query(queryStr, relevanceModel);
 
-        TopDocs tops = searcher.search(booleanQuery, 100);
+        TopDocs tops = searcher.search(booleanQuery, numResults);
         ScoreDoc[] scoreDoc = tops.scoreDocs;
         System.out.println("Found "+scoreDoc.length+" RM3 results.");
 
@@ -378,7 +380,7 @@ public class TrecCarLuceneQuery {
     private static ScoreDoc[] oneQuery(IndexSearcher searcher, MyQueryBuilder queryBuilder, String queryStr, String queryId, PrintWriter runfile, PrintStream debugStream) throws IOException {
         final TrecCarRepr trecCarRepr = queryBuilder.trecCarRepr;
         final BooleanQuery booleanQuery = queryBuilder.toQuery(queryStr);
-        TopDocs tops = searcher.search(booleanQuery, 100);
+        TopDocs tops = searcher.search(booleanQuery, numResults);
         ScoreDoc[] scoreDoc = tops.scoreDocs;
         System.out.println("Found "+scoreDoc.length+" results.");
 
