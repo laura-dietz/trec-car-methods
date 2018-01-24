@@ -147,6 +147,9 @@ public class TrecCarLuceneQuery {
     private static String expansionModel;
     private static String analyzer;
     private static int numResults;
+    private static int numEcmExpansionDocs=100;
+    private static int numRmExpansionDocs=20;
+    private static int numRmExpansionTerms=20;
 
     public static void main(String[] args) throws IOException {
         System.setProperty("file.encoding", "UTF-8");
@@ -366,7 +369,7 @@ public class TrecCarLuceneQuery {
     private static ScoreDoc[] oneExpandedQuery(IndexSearcher searcher, MyQueryBuilder queryBuilder, String queryStr, String queryId, PrintWriter runfile, PrintStream debugStream) throws IOException {
         final TrecCarRepr trecCarRepr = queryBuilder.trecCarRepr;
 
-        final List<Map.Entry<String, Float>> relevanceModel = relevanceModel(searcher, queryBuilder, queryStr, 20, 20, debugStream);
+        final List<Map.Entry<String, Float>> relevanceModel = relevanceModel(searcher, queryBuilder, queryStr, numRmExpansionDocs, numRmExpansionTerms, debugStream);
         final BooleanQuery booleanQuery = queryBuilder.toRm3Query(queryStr, relevanceModel);
 
         TopDocs tops = searcher.search(booleanQuery, numResults);
@@ -393,7 +396,7 @@ public class TrecCarLuceneQuery {
         Map<String, Float> entityFreqs = new HashMap<>();
 
         if(runfile!=null){
-            List<Map.Entry<String, Float>> expansionEntities = marginalizeFreqs(20, 20, scoreDoc, new FetchEntries() {
+            List<Map.Entry<String, Float>> expansionEntities = marginalizeFreqs(numEcmExpansionDocs, numResults, scoreDoc, new FetchEntries() {
                 @Override
                 public Iterable<String> entries(Integer docInt) throws IOException {
                     final Document doc = searcher.doc(docInt); // to access stored content
