@@ -168,9 +168,9 @@ public class TrecCarLuceneQuery {
         final String representation = args[0];
         TrecCarLuceneConfig.LuceneIndexConfig icfg = TrecCarLuceneConfig.getLuceneIndexConfig(representation);
 
-        String queryAs = args[1];
+        String queryType = args[1];
         String output = args[2];
-        TrecCarLuceneConfig.LuceneQueryConfig cfg = new TrecCarLuceneConfig.LuceneQueryConfig(icfg, !("display".equals(output)), "section".equals(queryAs));
+        TrecCarLuceneConfig.LuceneQueryConfig cfg = new TrecCarLuceneConfig.LuceneQueryConfig(icfg, !("display".equals(output)), "section".equals(queryType));
 
 
         final String queryCborFile = args[3];
@@ -181,9 +181,18 @@ public class TrecCarLuceneQuery {
         retrievalModel = args[7];
         expansionModel = args[8];
         analyzer = args[9];
-
-
         numResults = Integer.parseInt(args[10]);
+
+        System.out.println("queryType = " + queryType);
+        System.out.println("representation = " + representation);
+        System.out.println("queryModel = " + queryModel);
+        System.out.println("retrievalModel = " + retrievalModel);
+        System.out.println("expansionModel = " + expansionModel);
+        System.out.println("analyzer = " + analyzer);
+        System.out.println("numResults = " + numResults);
+        System.out.println("numRmExpansionDocs = " + numRmExpansionDocs);
+        System.out.println("numRmExpansionTerms = " + numRmExpansionTerms);
+        System.out.println("numEcmExpansionDocs = " + numEcmExpansionDocs);
 
 
         List<String> searchFields = null;
