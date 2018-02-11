@@ -77,11 +77,11 @@ public class TrecCarLuceneIndexer {
 
         System.out.println("Creating page index in "+indexPath);
 
-        final Iterator<Data.Page> paragraphIterator = DeserializeData.iterAnnotations(fileInputStream);
+        final Iterator<Data.Page> pageIterator = DeserializeData.iterAnnotations(fileInputStream);
 
         int i = 1;
-        while(paragraphIterator.hasNext()){
-            final Data.Page page = paragraphIterator.next();
+        while(pageIterator.hasNext()){
+            final Data.Page page = pageIterator.next();
             final List<Document> docs = trecCarPageRepr.pageToLuceneDoc(page);
             indexWriter.addDocuments(docs);
             if (i % 10000 == 0) {
