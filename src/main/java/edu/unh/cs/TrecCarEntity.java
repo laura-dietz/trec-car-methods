@@ -29,7 +29,6 @@ public class TrecCarEntity implements TrecCarPageRepr {
         return TrecCarSearchField.values();
     }
 
-    @Override
     public String idPage(Data.Page p) {
         return p.getPageId();
     }

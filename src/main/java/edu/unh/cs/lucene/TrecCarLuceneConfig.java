@@ -28,6 +28,9 @@ public class TrecCarLuceneConfig {
         else if (representation.equals("ecm")) {
             cfg = ecmConfig();
         }
+        else if (representation.equals("aspect")) {
+            cfg = aspectConfig();
+        }
         return cfg;
     }
 
@@ -117,6 +120,16 @@ public class TrecCarLuceneConfig {
         final LuceneIndexConfig config = new LuceneIndexConfig();
         config.indexName = "ecm.lucene";
         config.trecCarRepr = new TrecCarEcm();
+        config.isPageConfig = true;
+        config.emitsList = true;
+        config.setSearchFields(config.getDefaultSearchFields());
+        return config;
+    }
+
+    public static LuceneIndexConfig aspectConfig() {
+        final LuceneIndexConfig config = new LuceneIndexConfig();
+        config.indexName = "aspect.lucene";
+        config.trecCarRepr = new TrecCarAspect();
         config.isPageConfig = true;
         config.emitsList = true;
         config.setSearchFields(config.getDefaultSearchFields());

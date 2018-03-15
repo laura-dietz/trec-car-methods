@@ -14,7 +14,7 @@ import java.util.Map;
  * Time: 3:22 PM
  */
 public interface TrecCarPageRepr extends TrecCarRepr {
-    String idPage(Data.Page p);
+//    String idPage(Data.Page p);
 
     @NotNull
     Map<String, HashMap<TrecCarSearchField, List<String>>> convertPage(Data.Page p);
