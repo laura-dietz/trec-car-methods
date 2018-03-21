@@ -6,7 +6,7 @@
 
     <groupId>com.github.laura-dietz</groupId>
     <artifactId>trec-car-methods</artifactId>
-    <version>0.8</version>
+    <version>0.8-lucene6.5</version>
     <packaging>jar</packaging>
 
     <repositories>
@@ -42,13 +42,13 @@
         <dependency>
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-core</artifactId>
-            <version>7.2.0</version>
+            <version>6.5.1</version>
         </dependency>
 
         <dependency>
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-analyzers-common</artifactId>
-            <version>7.2.0</version>
+            <version>6.5.1</version>
         </dependency>
 
     </dependencies>
