@@ -21,4 +21,14 @@ public class TrecCarReprUtils {
         return result;
     }
 
+    public static List<String> getEntityIdsOnly(Data.Paragraph p) {
+        List<String> result = new ArrayList<>();
+        for(Data.ParaBody body: p.getBodies()){
+            if(body instanceof Data.ParaLink){
+                result.add(((Data.ParaLink) body).getPageId());
+            }
+        }
+        return result;
+    }
+
 }

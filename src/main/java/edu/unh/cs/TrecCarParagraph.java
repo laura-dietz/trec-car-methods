@@ -42,6 +42,7 @@ public class TrecCarParagraph implements TrecCarRepr {
         final HashMap<TrecCarSearchField, List<String>> result = new HashMap<>();
         result.put(TrecCarSearchField.Text, Collections.singletonList(p.getTextOnly()));
         result.put(TrecCarSearchField.EntityLinks, TrecCarReprUtils.getEntitiesOnly(p));
+        result.put(TrecCarSearchField.OutlinkIds, TrecCarReprUtils.getEntityIdsOnly(p));
         return result;
     }
 

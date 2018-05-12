@@ -6,7 +6,7 @@
 
     <groupId>com.github.laura-dietz</groupId>
     <artifactId>trec-car-methods</artifactId>
-    <version>0.8</version>
+    <version>0.9</version>
     <packaging>jar</packaging>
 
     <repositories>
