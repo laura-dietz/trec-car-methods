@@ -65,7 +65,7 @@
                     </descriptorRefs>
                     <archive>
                         <manifest>
-                            <mainClass>edu.unh.cs.TrecCarToolsExample</mainClass>
+                            <mainClass>edu.unh.cs.lucene.TrecCarLuceneIndexer</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
