@@ -158,7 +158,7 @@ public class TrecCarLuceneQuery {
     }
 
     private static void usage() {
-        System.out.println("Command line parameters: (paragraph|page|entity|ecm) " +
+        System.out.println("Command line parameters: (paragraph|page|entity|ecm|aspect) " +
                 " (section|page) (run|display) OutlineCBOR INDEX RUNFile" +
                 " (sectionPath|all|subtree|title|leafheading|interior)" +
                 " (bm25|ql|default) (none|rm|ecm|ecm-rm|ecm-psg) (std|english) numResults [searchField1] [searchField2] ...\n" +
