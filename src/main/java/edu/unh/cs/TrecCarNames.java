@@ -25,6 +25,11 @@ public class TrecCarNames implements TrecCarPageRepr {
     }
 
     @Override
+    public TrecCarSearchField getEntityField() {
+        return TrecCarSearchField.InlinkIds;
+    }
+
+    @Override
     public TrecCarSearchField[] getSearchFields() {
         return TrecCarSearchField.values();
     }

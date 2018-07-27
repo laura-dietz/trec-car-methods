@@ -50,13 +50,16 @@ public class TrecCarLuceneQuery {
         private final List<String> searchFields;
         private final TrecCarRepr trecCarRepr;
         private List<String> tokens;
+        private List<String> entityTokens;
         private final String textSearchField;
+        private final String entitySearchField;
 
         public MyQueryBuilder(Analyzer standardAnalyzer, List<String> searchFields, TrecCarRepr trecCarRepr){
             analyzer = standardAnalyzer;
             this.searchFields = searchFields;
             if(searchFields.size()>20) System.err.println("Warning: searching more than 20 fields, this may exceed the allowable number of 1024 boolean clauses.");
             textSearchField = trecCarRepr.getTextField().toString();
+            entitySearchField = trecCarRepr.getEntityField().toString();
             this.trecCarRepr = trecCarRepr;
             tokens = new ArrayList<>(64);
         }
@@ -76,15 +79,7 @@ public class TrecCarLuceneQuery {
 
         public BooleanQuery toRm3Query(String queryStr, List<Map.Entry<String, Float>> relevanceModel) throws IOException {
 
-            TokenStream tokenStream = analyzer.tokenStream(textSearchField, new StringReader(queryStr));
-            tokenStream.reset();
-            tokens.clear();
-            while (tokenStream.incrementToken() && tokens.size()<64) {
-                final String token = tokenStream.getAttribute(CharTermAttribute.class).toString();
-                tokens.add(token);
-            }
-            tokenStream.end();
-            tokenStream.close();
+            tokenizeQuery(queryStr, textSearchField, tokens);
             BooleanQuery.Builder booleanQuery = new BooleanQuery.Builder();
 
             for (String searchField : this.searchFields) {
@@ -105,17 +100,48 @@ public class TrecCarLuceneQuery {
 
             return booleanQuery.build();
         }
-        public BooleanQuery toQuery(String queryStr) throws IOException {
 
+        /** TOkenizes the query and stores results in `this.tokens`. -- Not thread safe!*/
+        private void tokenizeQuery(String queryStr, String textSearchField, List<String> tokens) throws IOException {
             TokenStream tokenStream = analyzer.tokenStream(textSearchField, new StringReader(queryStr));
             tokenStream.reset();
             tokens.clear();
-            while (tokenStream.incrementToken() && tokens.size()<64) {
+            while (tokenStream.incrementToken() && tokens.size() < 64) {
                 final String token = tokenStream.getAttribute(CharTermAttribute.class).toString();
                 tokens.add(token);
             }
             tokenStream.end();
             tokenStream.close();
+        }
+
+        public BooleanQuery toEntityRmQuery(String queryStr, List<Map.Entry<String, Float>> entityRelevanceModel) throws IOException {
+
+
+            tokenizeQuery(queryStr, textSearchField, tokens);
+            BooleanQuery.Builder booleanQuery = new BooleanQuery.Builder();
+
+            for (String searchField : this.searchFields) {
+                for (String token : tokens) {
+                    booleanQuery.add(new BoostQuery(new TermQuery(new Term(searchField, token)),1.0f), BooleanClause.Occur.SHOULD);
+                }
+            }
+
+            // add Entity RM terms
+            for (String entitySearchField : Collections.singletonList(this.entitySearchField)) {
+                for (Map.Entry<String, Float> stringFloatEntry : entityRelevanceModel.subList(0, Math.min(entityRelevanceModel.size(), (64-tokens.size())))) {
+                    String entity = stringFloatEntry.getKey();
+                    float weight = stringFloatEntry.getValue();
+                    booleanQuery.add(new BoostQuery(new TermQuery(new Term(entitySearchField, entity)),weight), BooleanClause.Occur.SHOULD);
+                }
+            }
+
+            return booleanQuery.build();
+        }
+
+
+        public BooleanQuery toQuery(String queryStr) throws IOException {
+
+            tokenizeQuery(queryStr, textSearchField, tokens);
             BooleanQuery.Builder booleanQuery = new BooleanQuery.Builder();
 
             for (String searchField : this.searchFields) {
@@ -271,7 +297,10 @@ public class TrecCarLuceneQuery {
 
     private static void expandedRetrievalModels(TrecCarLuceneConfig.LuceneQueryConfig cfg, IndexSearcher searcher, MyQueryBuilder queryBuilder, PrintWriter runfile, String queryStr, String queryId) throws IOException {
         PrintStream debugStream = (!cfg.isOutputAsRun()?System.out:SYSTEM_NULL);
-        if ("ecm-rm".equals(expansionModel)){
+        if ("ecm-psg".equals(expansionModel)) {
+            final ScoreDoc[] scoreDocs = oneQuery(searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream); // change back
+            ecmPsgRanking(searcher, queryId, queryBuilder, queryStr, runfile, scoreDocs, debugStream);
+        } else if ("ecm-rm".equals(expansionModel)){
             final ScoreDoc[] scoreDocs = oneExpandedQuery(searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, queryBuilder.trecCarRepr.getTextField().name());
             ecmRanking(searcher, queryId, runfile, scoreDocs, debugStream);
         } else if ("ecm".equals(expansionModel)) {
@@ -444,6 +473,45 @@ public class TrecCarLuceneQuery {
 
                 rank ++;
             }
+
+        }
+    }
+
+    private static void ecmPsgRanking(IndexSearcher searcher, String queryId, MyQueryBuilder queryBuilder, String queryStr, PrintWriter runfile, ScoreDoc[] scoreDoc, PrintStream debugStream) throws IOException {
+        Map<String, Float> entityFreqs = new HashMap<>();
+
+        if(runfile!=null){
+            List<Map.Entry<String, Float>> expansionEntities = marginalizeFreqs(numEcmExpansionDocs, numResults, scoreDoc, new FetchEntries() {
+                @Override
+                public Iterable<String> entries(Integer docInt) throws IOException {
+                    final Document doc = searcher.doc(docInt); // to access stored content
+                    final IndexableField outLinks = doc.getField(TrecCarRepr.TrecCarSearchField.OutlinkIds.name());
+                    final IndexableField inLinks = doc.getField(TrecCarRepr.TrecCarSearchField.InlinkIds.name());
+
+                    ArrayList<String> result = new ArrayList<>();
+                    if(outLinks!=null ) {
+                        final String[] outLinkIds = outLinks.stringValue().split("\n");
+                        result.addAll(Arrays.asList(outLinkIds));
+                    } else if(inLinks != null) {
+                        final String[] inLinkIds = inLinks.stringValue().split("\n");
+                        result.addAll(Arrays.asList(inLinkIds));
+                    }
+
+                    result.removeIf(String::isEmpty);
+                    return result;
+                }
+            }, entityFreqs);
+
+
+            final TrecCarRepr trecCarRepr = queryBuilder.trecCarRepr;
+
+            final BooleanQuery booleanQuery = queryBuilder.toEntityRmQuery(queryStr, expansionEntities);
+
+            TopDocs tops = searcher.search(booleanQuery, numResults);
+            ScoreDoc[] scoreDoc2 = tops.scoreDocs;
+            System.out.println("Found "+scoreDoc2.length+" Entity-RM results.");
+
+            outputQueryResults(searcher, queryId, runfile, trecCarRepr, scoreDoc2, debugStream);
 
         }
     }

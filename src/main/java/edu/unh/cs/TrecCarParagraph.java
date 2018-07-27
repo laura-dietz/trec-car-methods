@@ -27,6 +27,11 @@ public class TrecCarParagraph implements TrecCarRepr {
     }
 
     @Override
+    public TrecCarSearchField getEntityField() {
+        return TrecCarSearchField.OutlinkIds;
+    }
+
+    @Override
     public TrecCarSearchField[] getSearchFields() {
         return TrecCarSearchField.values();
     }

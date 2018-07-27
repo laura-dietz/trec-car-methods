@@ -28,6 +28,11 @@ public class TrecCarEcm implements TrecCarPageRepr {
     }
 
     @Override
+    public TrecCarSearchField getEntityField() {
+        return TrecCarSearchField.OutlinkIds;
+    }
+
+    @Override
     public TrecCarSearchField[] getSearchFields() {
         return new TrecCarSearchField[]{TrecCarSearchField.Text
                 , TrecCarSearchField.EntityLinks

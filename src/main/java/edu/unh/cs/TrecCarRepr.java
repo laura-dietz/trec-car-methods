@@ -27,6 +27,7 @@ public interface TrecCarRepr {
 
     TrecCarSearchField getIdField();
     TrecCarSearchField getTextField();
+    TrecCarSearchField getEntityField();
     TrecCarSearchField[] getSearchFields();
 
 
