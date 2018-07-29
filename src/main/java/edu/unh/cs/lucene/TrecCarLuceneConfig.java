@@ -21,7 +21,7 @@ public class TrecCarLuceneConfig {
         else if (representation.equals("paragraph")) {
             cfg = paragraphConfig();
         }
-        else if (representation.equals("pages")) {
+        else if (representation.equals("page")) {
             cfg = pageConfig();
         }
         else if (representation.equals("ecm")) {
