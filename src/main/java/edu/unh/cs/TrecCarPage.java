@@ -61,6 +61,18 @@ public class TrecCarPage implements TrecCarPageRepr {
         content.append(paragraph.getParagraph().getTextOnly()).append('\n');
     }
 
+    private static void pageContent(Data.Page page, StringBuilder content){
+        content.append(page.getPageName()).append('\n');
+
+        for(Data.PageSkeleton skel: page.getSkeleton()){
+            if(skel instanceof Data.Section) sectionContent((Data.Section) skel, content);
+            else if(skel instanceof Data.Para) paragraphContent((Data.Para) skel, content);
+            else {}    // ignore other
+        }
+
+    }
+
+
     private static List<String> getEntityIdsOnly(Data.Paragraph p) {
         List<String> result = new ArrayList<>();
         for(Data.ParaBody body: p.getBodies()){
@@ -84,20 +96,6 @@ public class TrecCarPage implements TrecCarPageRepr {
         entities.addAll(getEntityIdsOnly(paragraph.getParagraph()));
     }
 
-
-
-    private static void pageContent(Data.Page page, StringBuilder content){
-        content.append(page.getPageName()).append('\n');
-
-        for(Data.PageSkeleton skel: page.getSkeleton()){
-            if(skel instanceof Data.Section) sectionContent((Data.Section) skel, content);
-            else if(skel instanceof Data.Para) paragraphContent((Data.Para) skel, content);
-            else {}    // ignore other
-        }
-
-    }
-
-
     private static void pageEntities(Data.Page page, ArrayList<String> entities){
         for(Data.PageSkeleton skel: page.getSkeleton()){
             if(skel instanceof Data.Section) sectionEntities((Data.Section) skel, entities);
@@ -106,6 +104,10 @@ public class TrecCarPage implements TrecCarPageRepr {
         }
 
     }
+
+
+
+
 
     @NotNull
     public Map<String, HashMap<TrecCarSearchField, List<String>>> convertPage(Data.Page p){
