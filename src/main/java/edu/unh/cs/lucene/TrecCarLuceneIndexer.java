@@ -34,7 +34,7 @@ import java.util.List;
 public class TrecCarLuceneIndexer {
 
     private static void usage() {
-        System.out.println("Command line parameters: (paragraph|page|entity|edgedoc|ecm|aspect|names) CBOR LuceneINDEX");
+        System.out.println("Command line parameters: (paragraph|page|entity|ecm|aspect|names) CBOR LuceneINDEX");
         System.exit(-1);
     }
 
@@ -46,7 +46,7 @@ public class TrecCarLuceneIndexer {
         }
 
         if("--tool-version".equals(args[0])) {
-            System.out.println("2");
+            System.out.println("10");
             System.exit(0);
         }
 

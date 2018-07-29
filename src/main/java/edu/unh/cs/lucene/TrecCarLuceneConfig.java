@@ -18,8 +18,7 @@ public class TrecCarLuceneConfig {
         if (representation.equals("entity")) {
             cfg = entityConfig();
         }
-
-        if (representation.equals("paragraph")) {
+        else if (representation.equals("paragraph")) {
             cfg = paragraphConfig();
         }
         else if (representation.equals("pages")) {
@@ -33,6 +32,8 @@ public class TrecCarLuceneConfig {
         }
         else if (representation.equals("names")) {
             cfg = namesConfig();
+        } else {
+            throw new UnsupportedOperationException("Unknown index type "+representation);
         }
         return cfg;
     }
