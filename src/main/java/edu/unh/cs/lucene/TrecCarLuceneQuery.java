@@ -120,7 +120,7 @@ public class TrecCarLuceneQuery {
 
             for (String searchField : this.searchFields) {
                 for (String token : tokens) {
-//                    booleanQuery.add(new BoostQuery(new TermQuery(new Term(searchField, token)),1.0f), BooleanClause.Occur.SHOULD);
+                    booleanQuery.add(new BoostQuery(new TermQuery(new Term(searchField, token)),1.0f), BooleanClause.Occur.SHOULD);
                 }
             }
 
@@ -131,8 +131,8 @@ public class TrecCarLuceneQuery {
                   tokenizeQuery(stringFloatEntry.getKey(), entitySearchField, entityToks);
                   for(String entity: entityToks) {
                       float weight = stringFloatEntry.getValue();
-//                    booleanQuery.add(new BoostQuery(new TermQuery(new Term(entitySearchField, entity)),weight), BooleanClause.Occur.SHOULD);
-                      booleanQuery.add(new BoostQuery(new TermQuery(new Term(entitySearchField, entity)), 1.0f), BooleanClause.Occur.SHOULD);
+                        booleanQuery.add(new BoostQuery(new TermQuery(new Term(entitySearchField, entity)),weight), BooleanClause.Occur.SHOULD);
+//                      booleanQuery.add(new BoostQuery(new TermQuery(new Term(entitySearchField, entity)), 1.0f), BooleanClause.Occur.SHOULD);
                     }
                 }
             }
