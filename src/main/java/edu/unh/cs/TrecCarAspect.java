@@ -1,6 +1,7 @@
 package edu.unh.cs;
 
 import edu.unh.cs.treccar_v2.Data;
+import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
@@ -34,7 +35,12 @@ public class TrecCarAspect implements TrecCarPageRepr {
         return TrecCarSearchField.values();
     }
 
-    public String idPage(Data.Page p){
+  @Override
+  public Analyzer getAnalyzer(String analyzerStr) {
+    return TrecCarRepr.defaultAnalyzer(analyzerStr);
+  }
+
+  public String idPage(Data.Page p){
         return p.getPageId();
     }
 

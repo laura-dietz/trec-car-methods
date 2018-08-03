@@ -1,6 +1,7 @@
 package edu.unh.cs;
 
 import edu.unh.cs.treccar_v2.Data;
+import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.Document;
 import org.jetbrains.annotations.NotNull;
 
@@ -26,4 +27,5 @@ public interface TrecCarPageRepr extends TrecCarRepr {
     default TrecCarSearchField[] getSearchFields() {
         return TrecCarSearchField.values();
     }
+
 }

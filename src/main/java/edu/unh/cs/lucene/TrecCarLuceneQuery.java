@@ -5,8 +5,6 @@ import edu.unh.cs.treccar_v2.Data;
 import edu.unh.cs.treccar_v2.read_data.DeserializeData;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.en.EnglishAnalyzer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.*;
@@ -122,16 +120,20 @@ public class TrecCarLuceneQuery {
 
             for (String searchField : this.searchFields) {
                 for (String token : tokens) {
-                    booleanQuery.add(new BoostQuery(new TermQuery(new Term(searchField, token)),1.0f), BooleanClause.Occur.SHOULD);
+//                    booleanQuery.add(new BoostQuery(new TermQuery(new Term(searchField, token)),1.0f), BooleanClause.Occur.SHOULD);
                 }
             }
 
             // add Entity RM terms
             for (String entitySearchField : Collections.singletonList(this.entitySearchField)) {
                 for (Map.Entry<String, Float> stringFloatEntry : entityRelevanceModel.subList(0, Math.min(entityRelevanceModel.size(), (64-tokens.size())))) {
-                    String entity = stringFloatEntry.getKey();
-                    float weight = stringFloatEntry.getValue();
-                    booleanQuery.add(new BoostQuery(new TermQuery(new Term(entitySearchField, entity)),weight), BooleanClause.Occur.SHOULD);
+                  List<String> entityToks = new ArrayList<>();
+                  tokenizeQuery(stringFloatEntry.getKey(), entitySearchField, entityToks);
+                  for(String entity: entityToks) {
+                      float weight = stringFloatEntry.getValue();
+//                    booleanQuery.add(new BoostQuery(new TermQuery(new Term(entitySearchField, entity)),weight), BooleanClause.Occur.SHOULD);
+                      booleanQuery.add(new BoostQuery(new TermQuery(new Term(entitySearchField, entity)), 1.0f), BooleanClause.Occur.SHOULD);
+                    }
                 }
             }
 
@@ -171,7 +173,7 @@ public class TrecCarLuceneQuery {
     private static String queryModel;
     private static String retrievalModel;
     private static String expansionModel;
-    private static String analyzer;
+    private static String analyzerStr;
     private static int numResults;
     private static int numEcmExpansionDocs=100;
     private static int numRmExpansionDocs=20;
@@ -206,7 +208,7 @@ public class TrecCarLuceneQuery {
         queryModel = args[6];
         retrievalModel = args[7];
         expansionModel = args[8];
-        analyzer = args[9];
+        analyzerStr = args[9];
         numResults = Integer.parseInt(args[10]);
 
         System.out.println("queryType = " + queryType);
@@ -214,7 +216,7 @@ public class TrecCarLuceneQuery {
         System.out.println("queryModel = " + queryModel);
         System.out.println("retrievalModel = " + retrievalModel);
         System.out.println("expansionModel = " + expansionModel);
-        System.out.println("analyzer = " + analyzer);
+        System.out.println("analyzerStr = " + analyzerStr);
         System.out.println("numResults = " + numResults);
         System.out.println("numRmExpansionDocs = " + numRmExpansionDocs);
         System.out.println("numRmExpansionTerms = " + numRmExpansionTerms);
@@ -236,9 +238,9 @@ public class TrecCarLuceneQuery {
         else searchFieldsUsed = searchFields;
 
 
-        final Analyzer queryAnalyzer = ("std".equals(analyzer))? new StandardAnalyzer():
-                ("english".equals(analyzer)? new EnglishAnalyzer(): new StandardAnalyzer());
-
+//        final Analyzer queryAnalyzer = ("std".equals(analyzerStr))? new StandardAnalyzer():
+//                ("english".equals(analyzerStr)? new EnglishAnalyzer(): new StandardAnalyzer());
+        final Analyzer queryAnalyzer = icfg.trecCarRepr.getAnalyzer(analyzerStr);
 
         final MyQueryBuilder queryBuilder = new MyQueryBuilder(queryAnalyzer, searchFieldsUsed, icfg.trecCarRepr );
         final QueryBuilder.QueryStringBuilder queryStringBuilder =
@@ -530,6 +532,8 @@ public class TrecCarLuceneQuery {
             if(!alreadyReturned.contains(docId)){
                 debugStream.println(docId + " (" + searchRank + "):  SCORE " + score.score);
                 debugStream.println("  " + doc.getField(trecCarRepr.getTextField().name()).stringValue());
+                debugStream.println("  " + doc.getField(trecCarRepr.getEntityField().name()).stringValue());
+                debugStream.println("  " + doc.getField(trecCarRepr.getEntityField().name()).stringValue());
                 runfile.println(queryId + " Q0 " + docId + " " + searchRank + " " + searchScore + " Lucene-"+queryModel+"-"+retrievalModel);
             }
             alreadyReturned.add(docId);

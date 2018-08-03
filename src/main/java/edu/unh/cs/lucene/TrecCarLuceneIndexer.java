@@ -2,10 +2,15 @@ package edu.unh.cs.lucene;
 
 import edu.unh.cs.TrecCarPageRepr;
 import edu.unh.cs.TrecCarParagraph;
+import edu.unh.cs.TrecCarRepr;
 import edu.unh.cs.treccar_v2.Data;
 import edu.unh.cs.treccar_v2.read_data.DeserializeData;
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.DelegatingAnalyzerWrapper;
+import org.apache.lucene.analysis.core.SimpleAnalyzer;
+import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
+import org.apache.lucene.analysis.miscellaneous.PerFieldAnalyzerWrapper;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexWriter;
@@ -19,8 +24,10 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /*
  * User: dietz
@@ -34,7 +41,7 @@ import java.util.List;
 public class TrecCarLuceneIndexer {
 
     private static void usage() {
-        System.out.println("Command line parameters: (paragraph|page|entity|ecm|aspect|names) CBOR LuceneINDEX");
+        System.out.println("Command line parameters: (paragraph|page|entity|ecm|aspect|names) CBOR LuceneINDEX (std|english)");
         System.exit(-1);
     }
 
@@ -126,10 +133,18 @@ public class TrecCarLuceneIndexer {
         Path path = FileSystems.getDefault().getPath(indexPath, typeIndex);
         Directory indexDir = FSDirectory.open(path);
 
-        final Analyzer queryAnalyzer = ("std".equals(analyzer))? new StandardAnalyzer():
+        final Analyzer textAnalyzer = ("std".equals(analyzer))? new StandardAnalyzer():
                 ("english".equals(analyzer)? new EnglishAnalyzer(): new StandardAnalyzer());
 
+
+        final Map<String, Analyzer> fieldAnalyzers = new HashMap<>();
+        fieldAnalyzers.put(TrecCarRepr.TrecCarSearchField.OutlinkIds.name(), new WhitespaceAnalyzer());
+        fieldAnalyzers.put(TrecCarRepr.TrecCarSearchField.InlinkIds.name(), new WhitespaceAnalyzer());
+        fieldAnalyzers.put(TrecCarRepr.TrecCarSearchField.Id.name(), new WhitespaceAnalyzer());
+        final DelegatingAnalyzerWrapper queryAnalyzer = new PerFieldAnalyzerWrapper(textAnalyzer, fieldAnalyzers);
+
         IndexWriterConfig config = new IndexWriterConfig(queryAnalyzer);
+        config.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
         return new IndexWriter(indexDir, config);
     }
 }

@@ -1,6 +1,7 @@
 package edu.unh.cs;
 
 import edu.unh.cs.treccar_v2.Data;
+import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
@@ -36,8 +37,13 @@ public class TrecCarParagraph implements TrecCarRepr {
         return TrecCarSearchField.values();
     }
 
+  @Override
+  public Analyzer getAnalyzer(String analyzerStr) {
+    return TrecCarRepr.defaultAnalyzer(analyzerStr);
+  }
 
-    public String idParagraph(Data.Paragraph p){
+
+  public String idParagraph(Data.Paragraph p){
         return p.getParaId();
     }
 
