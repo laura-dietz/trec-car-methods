@@ -52,8 +52,8 @@ public class TrecCarLuceneQuery {
         private final String textSearchField;
         private final String entitySearchField;
 
-        public MyQueryBuilder(Analyzer standardAnalyzer, List<String> searchFields, TrecCarRepr trecCarRepr){
-            analyzer = standardAnalyzer;
+        public MyQueryBuilder(Analyzer analyzer, List<String> searchFields, TrecCarRepr trecCarRepr){
+            this.analyzer = analyzer;
             this.searchFields = searchFields;
             if(searchFields.size()>20) System.err.println("Warning: searching more than 20 fields, this may exceed the allowable number of 1024 boolean clauses.");
             textSearchField = trecCarRepr.getTextField().toString();
@@ -163,7 +163,8 @@ public class TrecCarLuceneQuery {
         System.out.println("Command line parameters: (paragraph|page|entity|ecm|aspect) " +
                 " (section|page) (run|display) OutlineCBOR INDEX RUNFile" +
                 " (sectionPath|all|subtree|title|leafheading|interior)" +
-                " (bm25|ql|default) (none|rm|ecm|ecm-rm|ecm-psg) (std|english) numResults [searchField1] [searchField2] ...\n" +
+                " (bm25|ql|default) (none|rm|ecm|ecm-rm|ecm-psg) (std|english) numResults " +
+                "numRmExpansionDocs numEcmExpansionDocs numRmExpansionTerms [searchField1] [searchField2] ...\n" +
                 "searchFields one of "+Arrays.toString(TrecCarRepr.TrecCarSearchField.values()));
         System.exit(-1);
     }
@@ -211,6 +212,21 @@ public class TrecCarLuceneQuery {
         analyzerStr = args[9];
         numResults = Integer.parseInt(args[10]);
 
+        if(args.length > 11){
+            try {
+                Integer.parseInt(args[11]);
+            } catch (NumberFormatException e) {
+                throw new RuntimeException("Trying to parse numRmExpansionDocs out of argument 11: \""+args[11]+"\"");
+            }
+        }
+        numRmExpansionDocs = (args.length > 11)? Integer.parseInt(args[11]): 20;
+        numEcmExpansionDocs = (args.length > 12)? Integer.parseInt(args[12]): 100;
+        numRmExpansionTerms = (args.length > 13)? Integer.parseInt(args[13]): 20;
+
+        List<String> searchFields = null;
+        if (args.length  > 13) searchFields = Arrays.asList(Arrays.copyOfRange(args, 13, args.length));
+
+
         System.out.println("queryType = " + queryType);
         System.out.println("representation = " + representation);
         System.out.println("queryModel = " + queryModel);
@@ -222,9 +238,6 @@ public class TrecCarLuceneQuery {
         System.out.println("numRmExpansionTerms = " + numRmExpansionTerms);
         System.out.println("numEcmExpansionDocs = " + numEcmExpansionDocs);
 
-
-        List<String> searchFields = null;
-        if (args.length  > 11) searchFields = Arrays.asList(Arrays.copyOfRange(args, 11, args.length));
 
         System.out.println("Index loaded from "+indexPath+"/"+cfg.getIndexConfig().getIndexName());
         IndexSearcher searcher = setupIndexSearcher(indexPath, cfg.getIndexConfig().indexName);
@@ -301,7 +314,7 @@ public class TrecCarLuceneQuery {
         PrintStream debugStream = (!cfg.isOutputAsRun()?System.out:SYSTEM_NULL);
         if ("ecm-psg".equals(expansionModel)) {
             final ScoreDoc[] scoreDocs = oneQuery(searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream); // change back
-            ecmPsgRanking(searcher, queryId, queryBuilder, queryStr, runfile, scoreDocs, debugStream);
+            ecmPsgRanking(searcher, queryId, queryBuilder, queryStr, runfile, scoreDocs, debugStream, numRmExpansionTerms);
         } else if ("ecm-rm".equals(expansionModel)){
             final ScoreDoc[] scoreDocs = oneExpandedQuery(searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, queryBuilder.trecCarRepr.getTextField().name());
             ecmRanking(searcher, queryId, runfile, scoreDocs, debugStream);
@@ -479,11 +492,11 @@ public class TrecCarLuceneQuery {
         }
     }
 
-    private static void ecmPsgRanking(IndexSearcher searcher, String queryId, MyQueryBuilder queryBuilder, String queryStr, PrintWriter runfile, ScoreDoc[] scoreDoc, PrintStream debugStream) throws IOException {
+    private static void ecmPsgRanking(IndexSearcher searcher, String queryId, MyQueryBuilder queryBuilder, String queryStr, PrintWriter runfile, ScoreDoc[] scoreDoc, PrintStream debugStream, int takeKTerms) throws IOException {
         Map<String, Float> entityFreqs = new HashMap<>();
 
         if(runfile!=null){
-            List<Map.Entry<String, Float>> expansionEntities = marginalizeFreqs(numEcmExpansionDocs, numResults, scoreDoc, new FetchEntries() {
+            List<Map.Entry<String, Float>> expansionEntities = marginalizeFreqs(numEcmExpansionDocs, takeKTerms, scoreDoc, new FetchEntries() {
                 @Override
                 public Iterable<String> entries(Integer docInt) throws IOException {
                     final Document doc = searcher.doc(docInt); // to access stored content
