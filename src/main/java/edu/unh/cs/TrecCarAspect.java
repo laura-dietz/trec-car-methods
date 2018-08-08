@@ -1,6 +1,7 @@
 package edu.unh.cs;
 
 import edu.unh.cs.treccar_v2.Data;
+import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
@@ -25,11 +26,21 @@ public class TrecCarAspect implements TrecCarPageRepr {
     }
 
     @Override
+    public TrecCarSearchField getEntityField() {
+        return TrecCarSearchField.OutlinkIds;
+    }
+
+    @Override
     public TrecCarSearchField[] getSearchFields() {
         return TrecCarSearchField.values();
     }
 
-    public String idPage(Data.Page p){
+  @Override
+  public Analyzer getAnalyzer(String analyzerStr) {
+    return TrecCarRepr.defaultAnalyzer(analyzerStr);
+  }
+
+  public String idPage(Data.Page p){
         return p.getPageId();
     }
 
@@ -71,6 +82,33 @@ public class TrecCarAspect implements TrecCarPageRepr {
     }
 
 
+
+
+
+    private static List<String> getEntityIdsOnly(Data.Paragraph p) {
+        List<String> result = new ArrayList<>();
+        for(Data.ParaBody body: p.getBodies()){
+            if(body instanceof Data.ParaLink){
+                result.add(((Data.ParaLink) body).getPageId());
+            }
+        }
+        return result;
+    }
+
+
+    private static void sectionEntities(Data.Section section, ArrayList<String> entities){
+        for (Data.PageSkeleton skel: section.getChildren()) {
+            if (skel instanceof Data.Section) sectionEntities((Data.Section) skel, entities);
+            else if (skel instanceof Data.Para) paragraphEntities((Data.Para) skel, entities);
+            else {
+            }
+        }
+    }
+    private static void paragraphEntities(Data.Para paragraph, ArrayList<String> entities){
+        entities.addAll(getEntityIdsOnly(paragraph.getParagraph()));
+    }
+
+
 //
 //    private static void pageContent(Data.Page page, StringBuilder content){
 //        content.append(page.getPageName()).append('\n');
@@ -102,6 +140,10 @@ public class TrecCarAspect implements TrecCarPageRepr {
         leadContent(p, lead);
         result.put(TrecCarSearchField.Text, Collections.singletonList(content.toString()+"\n\n\n"+lead.toString()));
         result.put(TrecCarSearchField.LeadText, Collections.singletonList(lead.toString()));
+
+        final ArrayList<String>  entities = new ArrayList<>();
+        sectionEntities(s, entities);
+        result.put(TrecCarSearchField.OutlinkIds, entities);
 
         final StringBuilder headings = new StringBuilder(s.getHeading());
         sectionHeadings(s.getChildren(), headings);

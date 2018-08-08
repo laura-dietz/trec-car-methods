@@ -2,6 +2,7 @@ package edu.unh.cs;
 
 import edu.unh.cs.data.EntityContextModel;
 import edu.unh.cs.treccar_v2.Data;
+import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
@@ -28,6 +29,11 @@ public class TrecCarEcm implements TrecCarPageRepr {
     }
 
     @Override
+    public TrecCarSearchField getEntityField() {
+        return TrecCarSearchField.OutlinkIds;
+    }
+
+    @Override
     public TrecCarSearchField[] getSearchFields() {
         return new TrecCarSearchField[]{TrecCarSearchField.Text
                 , TrecCarSearchField.EntityLinks
@@ -38,7 +44,10 @@ public class TrecCarEcm implements TrecCarPageRepr {
         };
     }
 
-    public String idEcm(EntityContextModel.Ecm ecm) {
+  @Override
+  public Analyzer getAnalyzer(String analyzerStr) { return TrecCarRepr.defaultAnalyzer(analyzerStr); }
+
+  public String idEcm(EntityContextModel.Ecm ecm) {
         return ecm.getEcmId();
     }
 

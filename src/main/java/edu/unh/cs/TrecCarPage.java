@@ -1,6 +1,7 @@
 package edu.unh.cs;
 
 import edu.unh.cs.treccar_v2.Data;
+import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
@@ -25,11 +26,21 @@ public class TrecCarPage implements TrecCarPageRepr {
     }
 
     @Override
+    public TrecCarSearchField getEntityField() {
+        return TrecCarSearchField.OutlinkIds;
+    }
+
+    @Override
     public TrecCarSearchField[] getSearchFields() {
         return TrecCarSearchField.values();
     }
 
-    public String idPage(Data.Page p){
+  @Override
+  public Analyzer getAnalyzer(String analyzerStr) {
+    return TrecCarRepr.defaultAnalyzer(analyzerStr);
+  }
+
+  public String idPage(Data.Page p){
         return p.getPageId();
     }
 
@@ -56,8 +67,6 @@ public class TrecCarPage implements TrecCarPageRepr {
         content.append(paragraph.getParagraph().getTextOnly()).append('\n');
     }
 
-
-
     private static void pageContent(Data.Page page, StringBuilder content){
         content.append(page.getPageName()).append('\n');
 
@@ -69,12 +78,55 @@ public class TrecCarPage implements TrecCarPageRepr {
 
     }
 
+
+    private static List<String> getEntityIdsOnly(Data.Paragraph p) {
+        List<String> result = new ArrayList<>();
+        for(Data.ParaBody body: p.getBodies()){
+            if(body instanceof Data.ParaLink){
+                result.add(((Data.ParaLink) body).getPageId());
+            }
+        }
+        return result;
+    }
+
+
+    private static void sectionEntities(Data.Section section, ArrayList<String> entities){
+        for (Data.PageSkeleton skel: section.getChildren()) {
+            if (skel instanceof Data.Section) sectionEntities((Data.Section) skel, entities);
+            else if (skel instanceof Data.Para) paragraphEntities((Data.Para) skel, entities);
+            else {
+            }
+        }
+        }
+    private static void paragraphEntities(Data.Para paragraph, ArrayList<String> entities){
+        entities.addAll(getEntityIdsOnly(paragraph.getParagraph()));
+    }
+
+    private static void pageEntities(Data.Page page, ArrayList<String> entities){
+        for(Data.PageSkeleton skel: page.getSkeleton()){
+            if(skel instanceof Data.Section) sectionEntities((Data.Section) skel, entities);
+            else if(skel instanceof Data.Para) paragraphEntities((Data.Para) skel, entities);
+            else {}    // ignore other
+        }
+
+    }
+
+
+
+
+
     @NotNull
     public Map<String, HashMap<TrecCarSearchField, List<String>>> convertPage(Data.Page p){
         final HashMap<TrecCarSearchField, List<String>> result = new HashMap<>();
         final StringBuilder content = new StringBuilder();
         pageContent(p, content);
         result.put(TrecCarSearchField.Text, Collections.singletonList(content.toString()));
+
+        final ArrayList<String>  entities = new ArrayList<>();
+        pageEntities(p, entities);
+        result.put(TrecCarSearchField.OutlinkIds, entities);
+
+        result.put(TrecCarSearchField.InlinkIds, p.getPageMetadata().getInlinkIds());
 
         final StringBuilder headings = new StringBuilder();
         pageHeadings(p.getSkeleton(), headings);
@@ -98,17 +150,34 @@ public class TrecCarPage implements TrecCarPageRepr {
         return docs;
     }
 
+//    @NotNull
+//    private Document singlePageToLuceneDoc(String id, HashMap<TrecCarSearchField, List<String>> repr) {
+//        final Document doc = new Document();
+//        doc.add(new StringField(getIdField().name(), id, Field.Store.YES));  // don't tokenize this!
+//
+//        for(TrecCarSearchField field:repr.keySet()) {
+//            doc.add(new TextField(field.name(), String.join("\n", repr.get(field)), Field.Store.YES));
+//        }
+//        return doc;
+//    }
+
+
     @NotNull
     private Document singlePageToLuceneDoc(String id, HashMap<TrecCarSearchField, List<String>> repr) {
         final Document doc = new Document();
         doc.add(new StringField(getIdField().name(), id, Field.Store.YES));  // don't tokenize this!
 
-        for(TrecCarSearchField field:repr.keySet()) {
-            doc.add(new TextField(field.name(), String.join("\n", repr.get(field)), Field.Store.YES));
+        for (TrecCarSearchField field : repr.keySet()) {
+            if (field == TrecCarSearchField.OutlinkIds || field == TrecCarSearchField.InlinkIds) {
+                // todo not sure how to add multiple of these without being butchered by the standard analyser
+                // StringField would take it as a single token, but that's also not really what we want here.
+                doc.add(new TextField(field.name(), String.join("\n", repr.get(field)), Field.Store.YES));
+            } else {
+                doc.add(new TextField(field.name(), String.join("\n", repr.get(field)), Field.Store.YES));
+            }
         }
         return doc;
     }
-
 
 
 }
