@@ -224,7 +224,7 @@ public class TrecCarLuceneQuery {
         numRmExpansionTerms = (args.length > 13)? Integer.parseInt(args[13]): 20;
 
         List<String> searchFields = null;
-        if (args.length  > 13) searchFields = Arrays.asList(Arrays.copyOfRange(args, 13, args.length));
+        if (args.length  > 14) searchFields = Arrays.asList(Arrays.copyOfRange(args, 14, args.length));
 
 
         System.out.println("queryType = " + queryType);
@@ -396,7 +396,8 @@ public class TrecCarLuceneQuery {
         }
         if (useLog) normalizer = Math.log(normalizer);
 
-        for (ScoreDoc score : scoreDoc) {
+        for (int i = 0; i < takeKDocs; i++) {
+            ScoreDoc score = scoreDoc[i];
             Double weight = useLog ? (score.score - normalizer) : (score.score / normalizer);
             for ( String entry: fetchEntries.entries(score.doc) ) {
                 wordFreqs.compute(entry, (t, oldV) ->
