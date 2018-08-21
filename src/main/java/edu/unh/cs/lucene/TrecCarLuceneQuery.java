@@ -13,6 +13,7 @@ import org.apache.lucene.search.similarities.BM25Similarity;
 import org.apache.lucene.search.similarities.LMDirichletSimilarity;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.BytesRef;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
@@ -77,6 +78,7 @@ public class TrecCarLuceneQuery {
 
         public BooleanQuery toRm3Query(String queryStr, List<Map.Entry<String, Float>> relevanceModel) throws IOException {
 
+
             tokenizeQuery(queryStr, textSearchField, tokens);
             BooleanQuery.Builder booleanQuery = new BooleanQuery.Builder();
 
@@ -132,6 +134,33 @@ public class TrecCarLuceneQuery {
                   for(String entity: entityToks) {
                       float weight = stringFloatEntry.getValue();
                         booleanQuery.add(new BoostQuery(new TermQuery(new Term(entitySearchField, entity)),weight), BooleanClause.Occur.SHOULD);
+//                      booleanQuery.add(new BoostQuery(new TermQuery(new Term(entitySearchField, entity)), 1.0f), BooleanClause.Occur.SHOULD);
+                    }
+                }
+            }
+
+            return booleanQuery.build();
+        }
+
+        public BooleanQuery toWhitelistRmQuery(String queryStr, List<String> whitelist) throws IOException {
+
+
+            tokenizeQuery(queryStr, textSearchField, tokens);
+            BooleanQuery.Builder booleanQuery = new BooleanQuery.Builder();
+
+            for (String searchField : this.searchFields) {
+                for (String token : tokens) {
+                    booleanQuery.add(new BoostQuery(new TermQuery(new Term(searchField, token)),1.0f), BooleanClause.Occur.SHOULD);
+                }
+            }
+
+            // add Entity RM terms
+            for (String entitySearchField : Collections.singletonList(TrecCarRepr.TrecCarSearchField.Id.toString())) {
+                for (String docId: whitelist) {
+                  List<String> docTocs = new ArrayList<>();
+                  tokenizeQuery(docId, entitySearchField, docTocs);
+                  for(String docIdTerm: docTocs) {
+                        booleanQuery.add(new BoostQuery(new TermQuery(new Term(entitySearchField, docIdTerm)),100), BooleanClause.Occur.SHOULD);
 //                      booleanQuery.add(new BoostQuery(new TermQuery(new Term(entitySearchField, entity)), 1.0f), BooleanClause.Occur.SHOULD);
                     }
                 }
@@ -440,11 +469,11 @@ public class TrecCarLuceneQuery {
 
     private static ScoreDoc[] oneQuery(IndexSearcher searcher, MyQueryBuilder queryBuilder, String queryStr, String queryId, PrintWriter runfile, PrintStream debugStream, List<String> queryEntities) throws IOException {
         final TrecCarRepr trecCarRepr = queryBuilder.trecCarRepr;
-        List<Map.Entry<String, Float>> queryEntities2 = new ArrayList<>();
-        for (String entity: queryEntities){
-            queryEntities2.add(new AbstractMap.SimpleEntry<String, Float>(entity,1f));
-        }
-        final BooleanQuery booleanQuery = queryBuilder.toEntityRmQuery(queryStr, queryEntities2);
+//        List<Map.Entry<String, Float>> queryEntities2 = new ArrayList<>();
+//        for (String entity: queryEntities){
+//            queryEntities2.add(new AbstractMap.SimpleEntry<String, Float>(entity,1f));
+//        }
+        final BooleanQuery booleanQuery = queryBuilder.toWhitelistRmQuery(queryStr, queryEntities);
         TopDocs tops = searcher.search(booleanQuery, numResults);
         ScoreDoc[] scoreDoc = tops.scoreDocs;
         System.out.println("Found "+scoreDoc.length+" results.");
