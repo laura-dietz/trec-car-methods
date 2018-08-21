@@ -182,6 +182,7 @@ public class TrecCarLuceneQuery {
 
     public static void main(String[] args) throws IOException {
         System.setProperty("file.encoding", "UTF-8");
+        boolean includeInlinkEntities = (System.getProperty("car.include-inlink-entities")!= null);
 
         if(args.length <1){
             usage();
@@ -275,7 +276,7 @@ public class TrecCarLuceneQuery {
             for (Data.Page page : DeserializeData.iterableAnnotations(fileInputStream3)) {
                 HashSet<String> alreadyQueried = new HashSet<>();
                 System.out.println("\n\nPage: " + page.getPageId());
-                final ArrayList<String> queryEntities = page.getPageMetadata().getInlinkIds();
+                final ArrayList<String> queryEntities =(includeInlinkEntities) ? page.getPageMetadata().getInlinkIds(): new ArrayList<>();
                 for (List<Data.Section> sectionPath : page.flatSectionPaths()) {
                     System.out.println();
                     System.out.println(Data.sectionPathId(page.getPageId(), sectionPath) + "   \t " + Data.sectionPathHeadings(sectionPath));
@@ -298,7 +299,7 @@ public class TrecCarLuceneQuery {
 
                 final String queryStr = queryStringBuilder.buildSectionQueryStr(page, Collections.emptyList());
                 final String queryId = page.getPageId();
-                final ArrayList<String> queryEntities = page.getPageMetadata().getInlinkIds();
+                final ArrayList<String> queryEntities =(includeInlinkEntities) ? page.getPageMetadata().getInlinkIds(): new ArrayList<>();
                 if(!alreadyQueried.contains(queryId)) {
                     expandedRetrievalModels(cfg, searcher, queryBuilder, runfile, queryStr, queryId, queryEntities);
                     alreadyQueried.add(queryId);
