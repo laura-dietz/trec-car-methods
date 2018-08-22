@@ -132,7 +132,7 @@ public class QueryBuilder {
             StringBuilder queryStr = new StringBuilder();
             Queue<Data.PageSkeleton> queue = new ArrayDeque<>();
             int paraCount = 0;
-            int paraThresh = 1;
+            int paraCharThresh = 200;
 //            queryStr.append(page.getPageName());
             queue.addAll(page.getSkeleton());
 
@@ -145,7 +145,7 @@ public class QueryBuilder {
                     Data.Paragraph para = ((Data.Para) skel).getParagraph();
                     queryStr.append(" ").append(para.getTextOnly());
                     paraCount ++;
-                    if (paraCount>=paraThresh) {
+                    if (queryStr.length()>=paraCharThresh) {
                         return  queryStr.toString();
                     }
 
