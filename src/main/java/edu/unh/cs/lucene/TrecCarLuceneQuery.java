@@ -157,12 +157,12 @@ public class TrecCarLuceneQuery {
             // add Entity RM terms
             for (String entitySearchField : Collections.singletonList(TrecCarRepr.TrecCarSearchField.Id.toString())) {
                 for (String docId: whitelist) {
-                  List<String> docTocs = new ArrayList<>();
-                  tokenizeQuery(docId, entitySearchField, docTocs);
-                  for(String docIdTerm: docTocs) {
-                        booleanQuery.add(new BoostQuery(new TermQuery(new Term(entitySearchField, docIdTerm)),100), BooleanClause.Occur.SHOULD);
+//                  List<String> docTocs = new ArrayList<>();
+//                  tokenizeQuery(docId, entitySearchField, docTocs);
+//                  for(String docIdTerm: docTocs) {
+                        booleanQuery.add(new BoostQuery(new TermQuery(new Term(entitySearchField, docId)),100), BooleanClause.Occur.SHOULD);
 //                      booleanQuery.add(new BoostQuery(new TermQuery(new Term(entitySearchField, entity)), 1.0f), BooleanClause.Occur.SHOULD);
-                    }
+//                    }
                 }
             }
 
