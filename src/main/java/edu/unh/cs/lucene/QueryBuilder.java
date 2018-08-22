@@ -126,4 +126,34 @@ public class QueryBuilder {
             }
         }
     }
+    static public class ParagraphQueryStringBuilder implements QueryStringBuilder {
+        @NotNull
+        public String buildSectionQueryStr(Data.Page page, List<Data.Section> sectionPath) {
+            StringBuilder queryStr = new StringBuilder();
+            Queue<Data.PageSkeleton> queue = new ArrayDeque<>();
+            int paraCount = 0;
+            int paraThresh = 1;
+            queryStr.append(page.getPageName());
+            queue.addAll(page.getSkeleton());
+
+            while(!queue.isEmpty()){
+                Data.PageSkeleton skel = queue.poll();
+                if( skel instanceof Data.Section ) {
+                    queue.addAll(((Data.Section) skel).getChildren());
+                }
+                else if (skel instanceof Data.Para ){
+                    Data.Paragraph para = ((Data.Para) skel).getParagraph();
+                    queryStr.append(" ").append(para.getTextOnly());
+                    paraCount ++;
+                    if (paraCount>=paraThresh) {
+                        return  queryStr.toString();
+                    }
+
+                }
+            }
+
+            return queryStr.toString();
+        }
+
+    }
 }

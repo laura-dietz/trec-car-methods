@@ -293,8 +293,9 @@ public class TrecCarLuceneQuery {
                                ("title".equals(queryModel) ? new QueryBuilder.TitleQueryStringBuilder():
                                    ("leafheading".equals(queryModel) ? new QueryBuilder.LeafHeadingQueryStringBuilder():
                                        ("interior".equals(queryModel) ? new QueryBuilder.InteriorHeadingQueryStringBuilder():
+                                        ("para".equals(queryModel) ? new QueryBuilder.ParagraphQueryStringBuilder():
                                          new QueryBuilder.SectionPathQueryStringBuilder()
-                                   )))));
+                                   ))))));
 
 
 
