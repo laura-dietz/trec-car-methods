@@ -133,7 +133,7 @@ public class QueryBuilder {
             Queue<Data.PageSkeleton> queue = new ArrayDeque<>();
             int paraCount = 0;
             int paraThresh = 1;
-            queryStr.append(page.getPageName());
+//            queryStr.append(page.getPageName());
             queue.addAll(page.getSkeleton());
 
             while(!queue.isEmpty()){
