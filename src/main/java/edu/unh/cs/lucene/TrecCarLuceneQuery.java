@@ -479,7 +479,8 @@ public class TrecCarLuceneQuery {
 //        for (String entity: queryEntities){
 //            queryEntities2.add(new AbstractMap.SimpleEntry<String, Float>(entity,1f));
 //        }
-        final BooleanQuery booleanQuery = queryBuilder.toWhitelistRmQuery(queryStr, queryEntities);
+//        final BooleanQuery booleanQuery = queryBuilder.toWhitelistRmQuery(queryStr, queryEntities);
+        final BooleanQuery booleanQuery = queryBuilder.toQuery(queryStr);
         TopDocs tops = searcher.search(booleanQuery, numResults);
         ScoreDoc[] scoreDoc = tops.scoreDocs;
         System.out.println("Found "+scoreDoc.length+" results.");
