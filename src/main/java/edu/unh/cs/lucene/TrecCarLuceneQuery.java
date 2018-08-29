@@ -169,7 +169,7 @@ public class TrecCarLuceneQuery {
             }
 
             final BooleanQuery q = booleanQuery.build();
-            System.out.println("booleanQuery = " + q.toString("Text"))
+            System.out.println("booleanQuery = " + q.toString("Text"));
 
             return q;
         }
