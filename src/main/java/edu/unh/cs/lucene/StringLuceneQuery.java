@@ -2,8 +2,6 @@ package edu.unh.cs.lucene;
 
 
 import edu.unh.cs.lucene.TrecCarLuceneQuery.*;
-import edu.unh.cs.treccar_v2.Data;
-import edu.unh.cs.treccar_v2.read_data.DeserializeData;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.similarities.BM25Similarity;
@@ -18,15 +16,6 @@ import java.util.*;
  * Time: 9:33 AM
  */
 public class StringLuceneQuery {
-
-  private static String queryModel;
-  private static String retrievalModel;
-  private static String expansionModel;
-  private static String analyzerStr;
-  private static int numResults;
-  private static int numRmExpansionDocs;
-  private static int numEcmExpansionDocs;
-  private static int numRmExpansionTerms;
 
   public static void main(String[] args) throws IOException {
     System.setProperty("file.encoding", "UTF-8");
@@ -55,11 +44,11 @@ public class StringLuceneQuery {
     final String indexPath = args[4];
     final String runFileName = args[5];
 
-    queryModel = args[6];
-    retrievalModel = args[7];
-    expansionModel = args[8];
-    analyzerStr = args[9];
-    numResults = Integer.parseInt(args[10]);
+    String queryModel = args[6];
+    String retrievalModel = args[7];
+    String expansionModel = args[8];
+    String analyzerStr = args[9];
+    int numResults = Integer.parseInt(args[10]);
 
     if (args.length > 11) {
       try {
@@ -68,9 +57,9 @@ public class StringLuceneQuery {
         throw new RuntimeException("Trying to parse numRmExpansionDocs out of argument 11: \"" + args[11] + "\"");
       }
     }
-    numRmExpansionDocs = (args.length > 11) ? Integer.parseInt(args[11]) : 20;
-    numEcmExpansionDocs = (args.length > 12) ? Integer.parseInt(args[12]) : 100;
-    numRmExpansionTerms = (args.length > 13) ? Integer.parseInt(args[13]) : 20;
+    int numRmExpansionDocs = (args.length > 11) ? Integer.parseInt(args[11]) : 20;
+    int numEcmExpansionDocs = (args.length > 12) ? Integer.parseInt(args[12]) : 100;
+    int numRmExpansionTerms = (args.length > 13) ? Integer.parseInt(args[13]) : 20;
 
     List<String> searchFields = null;
     if (args.length > 13) searchFields = Arrays.asList(Arrays.copyOfRange(args, 13, args.length));
@@ -124,7 +113,7 @@ public class StringLuceneQuery {
 
         final ArrayList<String> queryEntities = new ArrayList<>();
         if (!alreadyQueried.contains(queryId)) {
-          TrecCarLuceneQuery.expandedRetrievalModels(cfg, searcher, queryBuilder, runfile, queryStr, queryId, queryEntities);
+          TrecCarLuceneQuery.expandedRetrievalModels(cfg, searcher, queryBuilder, runfile, queryStr, queryId, queryEntities, expansionModel, numResults, numRmExpansionDocs, numEcmExpansionDocs, numRmExpansionTerms, queryModel);
           alreadyQueried.add(queryId);
         }
       }
