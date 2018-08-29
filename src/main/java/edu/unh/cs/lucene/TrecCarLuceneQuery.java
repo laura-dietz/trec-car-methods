@@ -188,7 +188,7 @@ public class TrecCarLuceneQuery {
 
     }
 
-    private static void usage() {
+    static void usage() {
         System.out.println("Command line parameters: (paragraph|page|entity|ecm|aspect) " +
                 " (section|page) (run|display) OutlineCBOR INDEX RUNFile" +
                 " (sectionPath|all|subtree|title|leafheading|interior)" +
@@ -343,7 +343,7 @@ public class TrecCarLuceneQuery {
 
     }
 
-    private static void expandedRetrievalModels(TrecCarLuceneConfig.LuceneQueryConfig cfg, IndexSearcher searcher, MyQueryBuilder queryBuilder, PrintWriter runfile, String queryStr, String queryId, List<String> queryEntities) throws IOException {
+    static void expandedRetrievalModels(TrecCarLuceneConfig.LuceneQueryConfig cfg, IndexSearcher searcher, MyQueryBuilder queryBuilder, PrintWriter runfile, String queryStr, String queryId, List<String> queryEntities) throws IOException {
         PrintStream debugStream = (!cfg.isOutputAsRun()?System.out:SYSTEM_NULL);
         if ("ecm-psg".equals(expansionModel)) {
             final ScoreDoc[] scoreDocs = oneQuery(searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, queryEntities); // change back
@@ -591,7 +591,7 @@ public class TrecCarLuceneQuery {
     }
 
     @NotNull
-    private static IndexSearcher setupIndexSearcher(String indexPath, String typeIndex) throws IOException {
+    static IndexSearcher setupIndexSearcher(String indexPath, String typeIndex) throws IOException {
         Path path = FileSystems.getDefault().getPath(indexPath, typeIndex);
         Directory indexDir = FSDirectory.open(path);
         IndexReader reader = DirectoryReader.open(indexDir);
