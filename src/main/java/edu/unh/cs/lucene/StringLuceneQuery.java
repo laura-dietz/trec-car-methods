@@ -106,10 +106,12 @@ public class StringLuceneQuery {
         final String queryId = splits[0];
         final String queryStr = splits[1];
 
+
         if (splits.length != 2)
           throw new RuntimeException("Query line \"" + line + "\" does not have exactly two fields. Expected format queryId \\t queryText");
 
-        if (!cfg.outputAsRun) System.out.println("\n\nQuery: " + queryId);
+        if (!cfg.outputAsRun) System.out.println("\n\nQueryId: " + queryId);
+        if (!cfg.outputAsRun) System.out.println("\n\nQueryStr: " + queryStr);
 
         final ArrayList<String> queryEntities = new ArrayList<>();
         if (!alreadyQueried.contains(queryId)) {
