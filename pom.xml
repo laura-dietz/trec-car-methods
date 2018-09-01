@@ -25,7 +25,7 @@
         <dependency>
             <groupId>co.nstant.in</groupId>
             <artifactId>cbor</artifactId>
-            <version>0.7</version>
+            <version>RELEASE</version>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
@@ -75,8 +75,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.2</version>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>1.10</source>
+                    <target>1.10</target>
                 </configuration>
             </plugin>
 
