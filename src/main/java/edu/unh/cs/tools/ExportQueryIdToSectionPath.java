@@ -41,7 +41,7 @@ public class ExportQueryIdToSectionPath {
           final String queryStr = queryStringBuilder.buildSectionQueryStr(page, sectionPath);
           final String queryId = Data.sectionPathId(page.getPageId(), sectionPath);
 
-          outputFile.write(queryId + '\t' + queryStr);
+          outputFile.write(queryId + '\t' + queryStr+'\n');
         }
       }
 
