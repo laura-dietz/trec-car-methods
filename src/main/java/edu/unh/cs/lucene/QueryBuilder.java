@@ -33,7 +33,7 @@ public class QueryBuilder {
                 for (Data.Section section : sectionPath) {
                     queryStr.append(" ").append(section.getHeading());
                 }
-                return queryStr.toString();
+                return queryStr.toString().replaceAll("\t", "s");
             }
         }
     }
@@ -55,7 +55,7 @@ public class QueryBuilder {
                 }
             }
 
-            return queryStr.toString();
+            return queryStr.toString().replaceAll("\t", "s");
         }
 
     }
@@ -84,14 +84,14 @@ public class QueryBuilder {
                     }
                 }
 
-                return queryStr.toString();
+                return queryStr.toString().replaceAll("\t", "s");
             }
         }
     }
     static public class TitleQueryStringBuilder implements QueryStringBuilder {
         @NotNull
         public String buildSectionQueryStr(Data.Page page, List<Data.Section> sectionPath) {
-            return page.getPageName();
+            return page.getPageName().replaceAll("\t", "s");
         }
     }
     static public class LeafHeadingQueryStringBuilder implements QueryStringBuilder {
@@ -105,7 +105,7 @@ public class QueryBuilder {
             } else {
 
                 Data.Section section = sectionPath.get(sectionPath.size() - 1);
-                return section.getHeading();
+                return section.getHeading().replaceAll("\t", "s");
             }
         }
     }
@@ -122,7 +122,7 @@ public class QueryBuilder {
                     Data.Section section = sectionPath.get(i);
                     queryStr.append(" ").append(section.getHeading());
                 }
-                return queryStr.toString();
+                return queryStr.toString().replaceAll("\t", "s");
             }
         }
     }
@@ -146,13 +146,13 @@ public class QueryBuilder {
                     queryStr.append(" ").append(para.getTextOnly());
                     paraCount ++;
                     if (queryStr.length()>=paraCharThresh) {
-                        return  queryStr.toString();
+                        return  queryStr.toString().replaceAll("\t", "s");
                     }
 
                 }
             }
 
-            return queryStr.toString();
+            return queryStr.toString().replaceAll("\t", "s");
         }
 
     }
