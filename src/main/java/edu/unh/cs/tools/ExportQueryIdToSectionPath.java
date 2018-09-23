@@ -7,6 +7,7 @@ import edu.unh.cs.treccar_v2.read_data.DeserializeData;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 
@@ -34,6 +35,15 @@ public class ExportQueryIdToSectionPath {
         HashSet<String> alreadyQueried = new HashSet<>();
         System.out.println("\n\nPage: " + page.getPageId());
 
+        // article-level
+        final String queryStr2 = queryStringBuilder.buildSectionQueryStr(page, Collections.emptyList());
+        final String queryId2 = Data.sectionPathId(page.getPageId(), Collections.emptyList());
+
+        outputFile.write(queryId2 + '\t' + queryStr2+'\n');
+
+
+        //  section-level
+
         for (List<Data.Section> sectionPath : page.flatSectionPaths()) {
           System.out.println();
           System.out.println(Data.sectionPathId(page.getPageId(), sectionPath) + "   \t " + Data.sectionPathHeadings(sectionPath));
@@ -43,6 +53,8 @@ public class ExportQueryIdToSectionPath {
 
           outputFile.write(queryId + '\t' + queryStr+'\n');
         }
+
+
       }
 
       System.out.println();
