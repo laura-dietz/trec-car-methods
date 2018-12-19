@@ -78,6 +78,13 @@ public class TrecCarLuceneQuery {
             tokenStream.close();
         }
 
+        /**
+         *
+         * @param queryStr untokenized query text
+         * @param relevanceModel  already tokenized, with weights
+         * @return
+         * @throws IOException
+         */
         public BooleanQuery toRm3Query(String queryStr, List<Map.Entry<String, Float>> relevanceModel) throws IOException {
 
 
@@ -103,7 +110,7 @@ public class TrecCarLuceneQuery {
             return booleanQuery.build();
         }
 
-        /** TOkenizes the query and stores results in `this.tokens`. -- Not thread safe!*/
+        /** TOkenizes the query and stores results in (the passed in) `tokens` -- Not thread safe!*/
         private void tokenizeQuery(String queryStr, String textSearchField, List<String> tokens) throws IOException {
             TokenStream tokenStream = analyzer.tokenStream(textSearchField, new StringReader(queryStr));
             tokenStream.reset();
@@ -116,15 +123,17 @@ public class TrecCarLuceneQuery {
             tokenStream.close();
         }
 
-        public BooleanQuery toEntityRmQuery(String queryStr, List<Map.Entry<String, Float>> entityRelevanceModel) throws IOException {
+        public BooleanQuery toEntityRmQuery(String queryStr, List<Map.Entry<String, Float>> entityRelevanceModel, boolean omitQueryTerms) throws IOException {
 
 
-            tokenizeQuery(queryStr, textSearchField, tokens);
             BooleanQuery.Builder booleanQuery = new BooleanQuery.Builder();
+            if(!omitQueryTerms) {
+                tokenizeQuery(queryStr, textSearchField, tokens);
 
-            for (String searchField : this.searchFields) {
-                for (String token : tokens) {
-                    booleanQuery.add(new BoostQuery(new TermQuery(new Term(searchField, token)),1.0f), BooleanClause.Occur.SHOULD);
+                for (String searchField : this.searchFields) {
+                    for (String token : tokens) {
+                        booleanQuery.add(new BoostQuery(new TermQuery(new Term(searchField, token)), 1.0f), BooleanClause.Occur.SHOULD);
+                    }
                 }
             }
 
@@ -197,7 +206,7 @@ public class TrecCarLuceneQuery {
         System.out.println("Command line parameters: (paragraph|page|entity|ecm|aspect) " +
                 " (section|page) (run|display) OutlineCBOR INDEX RUNFile" +
                 " (sectionPath|all|subtree|title|leafheading|interior)" +
-                " (bm25|ql|default) (none|rm|ecm|ecm-rm|ecm-psg) (std|english) numResults " +
+                " (bm25|ql|default) (none|rm|ecm|ecm-rm|ecm-psg|rm1|ecm-psg1) (std|english) numResults " +
                 "numRmExpansionDocs numEcmExpansionDocs numRmExpansionTerms [searchField1] [searchField2] ...\n" +
                 "searchFields one of "+Arrays.toString(TrecCarRepr.TrecCarSearchField.values()));
         System.exit(-1);
@@ -352,15 +361,20 @@ public class TrecCarLuceneQuery {
         PrintStream debugStream = (!cfg.isOutputAsRun()?System.out:SYSTEM_NULL);
         if ("ecm-psg".equals(expansionModel)) {
             final ScoreDoc[] scoreDocs = oneQuery(searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, queryEntities, numResults, queryModel); // change back
-            ecmPsgRanking(searcher, queryId, queryBuilder, queryStr, runfile, scoreDocs, debugStream, numRmExpansionTerms, numEcmExpansionDocs, numResults, queryModel);
+            ecmPsgRanking(searcher, queryId, queryBuilder, queryStr, runfile, scoreDocs, debugStream, numRmExpansionTerms, numEcmExpansionDocs, numResults, queryModel, false);
+        } else if ("ecm-psg1".equals(expansionModel)) {
+            final ScoreDoc[] scoreDocs = oneQuery(searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, queryEntities, numResults, queryModel); // change back
+            ecmPsgRanking(searcher, queryId, queryBuilder, queryStr, runfile, scoreDocs, debugStream, numRmExpansionTerms, numEcmExpansionDocs, numResults, queryModel, true);
         } else if ("ecm-rm".equals(expansionModel)){
-            final ScoreDoc[] scoreDocs = oneExpandedQuery(searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, queryBuilder.trecCarRepr.getTextField().name(), queryModel, numRmExpansionDocs, numResults, numRmExpansionTerms);
+            final ScoreDoc[] scoreDocs = oneExpandedQuery(searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, queryBuilder.trecCarRepr.getTextField().name(), queryModel, numRmExpansionDocs, numResults, numRmExpansionTerms, false );
             ecmRanking(searcher, queryId, runfile, scoreDocs, debugStream, numResults, numEcmExpansionDocs, queryModel);
         } else if ("ecm".equals(expansionModel)) {
             final ScoreDoc[] scoreDocs = oneQuery(searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, queryEntities, numResults, queryModel); // change back
             ecmRanking(searcher, queryId, runfile, scoreDocs, debugStream, numResults, numEcmExpansionDocs, queryModel);
         } else if ("rm".equals(expansionModel)){
-            oneExpandedQuery(searcher, queryBuilder, queryStr, queryId, runfile, debugStream, queryBuilder.trecCarRepr.getTextField().name(), queryModel, numRmExpansionDocs, numResults, numRmExpansionTerms);
+            oneExpandedQuery(searcher, queryBuilder, queryStr, queryId, runfile, debugStream, queryBuilder.trecCarRepr.getTextField().name(), queryModel, numRmExpansionDocs, numResults, numRmExpansionTerms, false);
+        } else if ("rm1".equals(expansionModel)){
+            oneExpandedQuery(searcher, queryBuilder, queryStr, queryId, runfile, debugStream, queryBuilder.trecCarRepr.getTextField().name(), queryModel, numRmExpansionDocs, numResults, numRmExpansionTerms, true);
         } else if ("none".equals(expansionModel)){
             oneQuery(searcher, queryBuilder, queryStr, queryId, runfile, debugStream, queryEntities, numResults, queryModel);
         } else {
@@ -370,20 +384,24 @@ public class TrecCarLuceneQuery {
     }
 
 
-    private static List<Map.Entry<String, Float>> relevanceModel(IndexSearcher searcher, MyQueryBuilder queryBuilder, String queryStr, int takeKDocs, int takeKTerms, PrintStream debugStream, String expansionField) throws IOException {
+    private static List<Map.Entry<String, Float>> relevanceModel(IndexSearcher searcher, MyQueryBuilder queryBuilder, String queryStr, int takeKDocs, int takeKTerms, PrintStream debugStream, String expansionField, boolean omitQueryTerms) throws IOException {
         final TrecCarRepr trecCarRepr = queryBuilder.trecCarRepr;
         final BooleanQuery booleanQuery = queryBuilder.toQuery(queryStr);
         TopDocs tops = searcher.search(booleanQuery, takeKDocs);
         ScoreDoc[] scoreDoc = tops.scoreDocs;
-
         final Map<String, Float> wordFreqs = new HashMap<>();
-        queryBuilder.addTokens(queryStr, 1.0f, wordFreqs);
+
+        if(!omitQueryTerms) {
+            queryBuilder.addTokens(queryStr, 1.0f, wordFreqs);
+        }
 
         // guess if we have log scores...
         boolean useLog = false;
         for (ScoreDoc score : scoreDoc) {
-            if (score.score < 0.0) useLog = true;
-            break;
+            if (score.score < 0.0) {
+                useLog = true;
+                break;
+            }
         }
 
         // compute score normalizer
@@ -410,7 +428,7 @@ public class TrecCarLuceneQuery {
 
         List<Map.Entry<String, Float>> expansionTerms = allWordFreqs.subList(0, Math.min(takeKTerms, allWordFreqs.size()));
 
-        System.out.println("RM3 Expansions: "+expansionTerms.toString());
+        System.out.println("RM3 Expansions for \""+queryStr+ "\": "+expansionTerms.toString());
         return expansionTerms;
     }
 
@@ -459,10 +477,10 @@ public class TrecCarLuceneQuery {
 
 
 
-    private static ScoreDoc[] oneExpandedQuery(IndexSearcher searcher, MyQueryBuilder queryBuilder, String queryStr, String queryId, PrintWriter runfile, PrintStream debugStream, String expansionField, String queryModel, int numRmExpansionDocs, int numResults, int numRmExpansionTerms) throws IOException {
+    private static ScoreDoc[] oneExpandedQuery(IndexSearcher searcher, MyQueryBuilder queryBuilder, String queryStr, String queryId, PrintWriter runfile, PrintStream debugStream, String expansionField, String queryModel, int numRmExpansionDocs, int numResults, int numRmExpansionTerms, boolean omitQueryTerms) throws IOException {
         final TrecCarRepr trecCarRepr = queryBuilder.trecCarRepr;
 
-        final List<Map.Entry<String, Float>> relevanceModel = relevanceModel(searcher, queryBuilder, queryStr, numRmExpansionDocs, numRmExpansionTerms, debugStream, expansionField);
+        final List<Map.Entry<String, Float>> relevanceModel = relevanceModel(searcher, queryBuilder, queryStr, numRmExpansionDocs, numRmExpansionTerms, debugStream, expansionField, omitQueryTerms);
         final BooleanQuery booleanQuery = queryBuilder.toRm3Query(queryStr, relevanceModel);
 
         TopDocs tops = searcher.search(booleanQuery, numResults);
@@ -535,7 +553,7 @@ public class TrecCarLuceneQuery {
         }
     }
 
-    private static void ecmPsgRanking(IndexSearcher searcher, String queryId, MyQueryBuilder queryBuilder, String queryStr, PrintWriter runfile, ScoreDoc[] scoreDoc, PrintStream debugStream, int takeKTerms, int numEcmExpansionDocs, int numResults, String queryModel) throws IOException {
+    private static void ecmPsgRanking(IndexSearcher searcher, String queryId, MyQueryBuilder queryBuilder, String queryStr, PrintWriter runfile, ScoreDoc[] scoreDoc, PrintStream debugStream, int takeKTerms, int numEcmExpansionDocs, int numResults, String queryModel, boolean omitQueryTerms ) throws IOException {
         Map<String, Float> entityFreqs = new HashMap<>();
 
         if(runfile!=null){
@@ -563,7 +581,7 @@ public class TrecCarLuceneQuery {
 
             final TrecCarRepr trecCarRepr = queryBuilder.trecCarRepr;
 
-            final BooleanQuery booleanQuery = queryBuilder.toEntityRmQuery(queryStr, expansionEntities);
+            final BooleanQuery booleanQuery = queryBuilder.toEntityRmQuery(queryStr, expansionEntities, omitQueryTerms);
 
             TopDocs tops = searcher.search(booleanQuery, numResults);
             ScoreDoc[] scoreDoc2 = tops.scoreDocs;
