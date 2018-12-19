@@ -10,7 +10,7 @@ import java.util.Arrays;
  */
 public class TrecCarLuceneMeta {
     public static void main(String[] args) throws IOException {
-        String[] newargs = new String[12];
+        String[] newargs = new String[14];
         String[] newargs_;
         System.arraycopy(args, 0, newargs, 0, 6);
 
@@ -23,9 +23,12 @@ public class TrecCarLuceneMeta {
                     newargs[8] = expansionModel;
                     for (String analyzer : new String[]{"std", "english"}) {
                         newargs[9] = analyzer;
+                        newargs[10] = "5";
+                        newargs[11] = "5";
+                        newargs[12] = "5";
                         for (String searchfield : new String[]{"Text", ""}) {
                             if (searchfield.length() > 0) {
-                                newargs[11] = searchfield;
+                                newargs[13] = searchfield;
                                 newargs_ = newargs;
                             } else {
                                 newargs_ = Arrays.copyOfRange(newargs, 0, 11);
