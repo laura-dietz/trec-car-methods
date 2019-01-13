@@ -436,12 +436,16 @@ public class TrecCarLuceneQuery {
     public static interface FetchEntries{
         public Iterable<String> entries(Integer docInt) throws IOException;
     }
-    private static List<Map.Entry<String, Float>> marginalizeFreqs(int takeKDocs, int takeKTerms, ScoreDoc[] scoreDoc, FetchEntries fetchEntries, Map<String, Float> wordFreqs ) throws IOException {
+    private static List<Map.Entry<String, Float>> marginalizeFreqs(int takeKDocs, int takeKTerms, ScoreDoc[] scoreDocAll, FetchEntries fetchEntries, Map<String, Float> wordFreqs ) throws IOException {
+        // only analyze the first takeKDocs of ranking
+        ScoreDoc[] scoreDoc = Arrays.copyOfRange(scoreDocAll, 0, takeKDocs);
         // guess if we have log scores...
         boolean useLog = false;
         for (ScoreDoc score : scoreDoc) {
-            if (score.score < 0.0) useLog = true;
-            break;
+            if (score.score < 0.0) {
+                useLog = true;
+                break;
+            }
         }
 
         // compute score normalizer
