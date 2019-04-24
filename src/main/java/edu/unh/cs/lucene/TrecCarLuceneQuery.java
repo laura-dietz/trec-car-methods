@@ -86,11 +86,13 @@ public class TrecCarLuceneQuery {
          * @throws IOException
          */
         public BooleanQuery toRm3Query(String queryStr, List<Map.Entry<String, Float>> relevanceModel) throws IOException {
-
-
-            tokenizeQuery(queryStr, textSearchField, tokens);
+            // builder for the query
             BooleanQuery.Builder booleanQuery = new BooleanQuery.Builder();
 
+            // this is a field-specific tokenizer
+            tokenizeQuery(queryStr, textSearchField, tokens);
+
+            // original query terms with boost 1.0
             for (String searchField : this.searchFields) {
                 for (String token : tokens) {
                     booleanQuery.add(new BoostQuery(new TermQuery(new Term(searchField, token)),1.0f), BooleanClause.Occur.SHOULD);
@@ -105,7 +107,6 @@ public class TrecCarLuceneQuery {
                     booleanQuery.add(new BoostQuery(new TermQuery(new Term(searchField, token)),weight), BooleanClause.Occur.SHOULD);
                 }
             }
-
 
             return booleanQuery.build();
         }
@@ -385,11 +386,14 @@ public class TrecCarLuceneQuery {
 
 
     private static List<Map.Entry<String, Float>> relevanceModel(IndexSearcher searcher, MyQueryBuilder queryBuilder, String queryStr, int takeKDocs, int takeKTerms, PrintStream debugStream, String expansionField, boolean omitQueryTerms) throws IOException {
-        final TrecCarRepr trecCarRepr = queryBuilder.trecCarRepr;
         final BooleanQuery booleanQuery = queryBuilder.toQuery(queryStr);
+
+        // feedback run only fetch top k documents
         TopDocs tops = searcher.search(booleanQuery, takeKDocs);
         ScoreDoc[] scoreDoc = tops.scoreDocs;
         final Map<String, Float> wordFreqs = new HashMap<>();
+
+        // add query terms with boost 1.0
 
         if(!omitQueryTerms) {
             queryBuilder.addTokens(queryStr, 1.0f, wordFreqs);
