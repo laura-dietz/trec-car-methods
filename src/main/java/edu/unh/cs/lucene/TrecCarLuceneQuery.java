@@ -446,6 +446,9 @@ public class TrecCarLuceneQuery {
         // guess if we have log scores...
         boolean useLog = false;
         for (ScoreDoc score : scoreDoc) {
+            if (score == null) {
+                continue;
+            }
             if (score.score < 0.0) {
                 useLog = true;
                 break;
@@ -455,12 +458,18 @@ public class TrecCarLuceneQuery {
         // compute score normalizer
         double normalizer = 0.0;
         for (ScoreDoc score : scoreDoc) {
+            if (score == null) {
+                continue;
+            }
             if (useLog) normalizer += Math.exp(score.score);
             else normalizer += score.score;
         }
         if (useLog) normalizer = Math.log(normalizer);
 
         for (ScoreDoc score : scoreDoc) {
+            if (score == null) {
+                continue;
+            }
             Double weight = useLog ? (score.score - normalizer) : (score.score / normalizer);
             for ( String entry: fetchEntries.entries(score.doc) ) {
                 wordFreqs.compute(entry, (t, oldV) ->
