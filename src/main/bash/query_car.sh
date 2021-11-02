@@ -50,7 +50,7 @@ for indexType in "paragraph" "page" "entity" "aspect"; do
               if [[ "${expansionModel}" == "ecm" ]]; then rankType="entity"; fi
               if [[ "${expansionModel}" == "ecm-rm" ]]; then rankType="entity"; fi
 				      #cfg=$queryType $retrievalModel $expansionModel $analyzer $numResults $numRmExpansionDocs $numEcmExpansionDocs $numRmExpansionTerms Text
-				      run="lucene-luceneindex$indexDir-lucene-$indexType--$rankType-$queryMode--$queryType-$retrievalModel-$expansionModel--Text-$analyzer-k$numResults-$outlineCborName.run"
+				      run="lucene-luceneindex$indexType-lucene-$indexType--$rankType-$queryMode--$queryType-$retrievalModel-$expansionModel--Text-$analyzer-k$numResults-$outlineCborName.run"
 				      java ${vmopts} -jar $jarFile query ${indexType} ${queryMode} run "$outlineCbor" "$indexDir" "$runDir"/"$run" $queryType $retrievalModel $expansionModel $analyzer $numResults $numRmExpansionDocs $numEcmExpansionDocs $numRmExpansionTerms "Text"
 				      echo "${run}"
 			    done
