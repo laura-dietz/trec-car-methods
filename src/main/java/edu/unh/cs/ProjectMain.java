@@ -49,21 +49,13 @@ public class ProjectMain {
             String expansionModel = args[9];
             String analyzerStr = args[10];
             int numResults = Integer.parseInt(args[11]);
-
-            if(args.length > 12){
-                try {
-                    Integer.parseInt(args[12]);
-                } catch (NumberFormatException e) {
-                    throw new RuntimeException("Trying to parse numRmExpansionDocs out of argument 12: \""+args[12]+"\"");
-                }
-            }
             int numRmExpansionDocs = (args.length > 12)? Integer.parseInt(args[12]): 20;
             int numEcmExpansionDocs = (args.length > 13)? Integer.parseInt(args[13]): 100;
             int numRmExpansionTerms = (args.length > 14)? Integer.parseInt(args[14]): 20;
 
             List<String> searchFields = new ArrayList<>();
-            if (args.length  > 14) {
-                searchFields = Arrays.asList(Arrays.copyOfRange(args, 14, args.length));
+            if (args.length  > 15) {
+                searchFields = Arrays.asList(Arrays.copyOfRange(args, 15, args.length));
             }
 
             new TrecCarLuceneQuery(representation,queryType,output,queryCborFile,indexPath,runFileName,queryModel,
