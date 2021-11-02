@@ -1,6 +1,7 @@
 package edu.unh.cs.lucene;
 
 import edu.unh.cs.*;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,7 +13,7 @@ import java.util.List;
  */
 public class TrecCarLuceneConfig {
 
-    static LuceneIndexConfig getLuceneIndexConfig(String representation) {
+    public static LuceneIndexConfig getLuceneIndexConfig(String representation) {
         LuceneIndexConfig cfg = pageConfig();
 
         if (representation.equals("entity")) {
@@ -102,6 +103,7 @@ public class TrecCarLuceneConfig {
         return config;
     }
 
+    @NotNull
     public static LuceneIndexConfig pageConfig() {
         final LuceneIndexConfig config = new LuceneIndexConfig();
         config.indexName = "page.lucene";

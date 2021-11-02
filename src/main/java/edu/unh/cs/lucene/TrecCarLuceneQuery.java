@@ -34,6 +34,150 @@ import java.util.*;
  */
 public class TrecCarLuceneQuery {
 
+    public TrecCarLuceneQuery(String representation,
+                              String queryType,
+                              String output,
+                              String queryCborFile,
+                              String indexPath,
+                              String runFileName,
+                              String queryModel,
+                              String retrievalModel,
+                              String expansionModel,
+                              String analyzerStr,
+                              int numResults,
+                              int numRmExpansionDocs,
+                              int numEcmExpansionDocs,
+                              int numRmExpansionTerms,
+                              List<String> searchFields) {
+
+        TrecCarLuceneConfig.LuceneIndexConfig icfg = TrecCarLuceneConfig.getLuceneIndexConfig(representation);
+        TrecCarLuceneConfig.LuceneQueryConfig cfg = new TrecCarLuceneConfig.LuceneQueryConfig(icfg,
+                !("display".equals(output)), "section".equals(queryType));
+
+        System.out.println("Index loaded from "+indexPath+"/"+cfg.getIndexConfig().getIndexName());
+        IndexSearcher searcher = null;
+        try {
+            searcher = setupIndexSearcher(indexPath, cfg.getIndexConfig().indexName);
+            if ("bm25".equals(retrievalModel)) {
+                searcher.setSimilarity(new BM25Similarity());
+            }
+            else if ("ql".equals(retrievalModel)) {
+                searcher.setSimilarity(new LMDirichletSimilarity(1500));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        List<String> searchFieldsUsed;
+        if (searchFields == null) {
+            searchFieldsUsed = cfg.getIndexConfig().getSearchFields();
+        } else {
+            searchFieldsUsed = searchFields;
+        }
+
+        final Analyzer queryAnalyzer = icfg.trecCarRepr.getAnalyzer(analyzerStr);
+
+        final MyQueryBuilder queryBuilder = new MyQueryBuilder(queryAnalyzer, searchFieldsUsed, icfg.trecCarRepr );
+        final QueryBuilder.QueryStringBuilder queryStringBuilder =
+                ("sectionpath".equals(queryModel))? new QueryBuilder.SectionPathQueryStringBuilder() :
+                        ("all".equals(queryModel) ? new QueryBuilder.OutlineQueryStringBuilder():
+                                ("subtree".equals(queryModel) ? new QueryBuilder.SubtreeQueryStringBuilder():
+                                        ("title".equals(queryModel) ? new QueryBuilder.TitleQueryStringBuilder():
+                                                ("leafheading".equals(queryModel) ? new QueryBuilder.LeafHeadingQueryStringBuilder():
+                                                        ("interior".equals(queryModel) ? new QueryBuilder.InteriorHeadingQueryStringBuilder():
+                                                                ("para".equals(queryModel) ? new QueryBuilder.ParagraphQueryStringBuilder():
+                                                                        new QueryBuilder.SectionPathQueryStringBuilder()
+                                                                ))))));
+
+        doTask(queryCborFile, cfg, queryStringBuilder, searcher, queryBuilder, runFileName,
+                expansionModel,numResults,numRmExpansionDocs,numEcmExpansionDocs,numRmExpansionTerms, queryModel);
+
+
+    }
+
+    private void doTask(String queryCborFile,
+                        TrecCarLuceneConfig.LuceneQueryConfig cfg,
+                        QueryBuilder.QueryStringBuilder queryStringBuilder,
+                        IndexSearcher searcher,
+                        MyQueryBuilder queryBuilder,
+                        String runFileName,
+                        String expansionModel,
+                        int numResults,
+                        int numRmExpansionDocs,
+                        int numEcmExpansionDocs,
+                        int numRmExpansionTerms,
+                        String queryModel) {
+
+        boolean includeInlinkEntities = (System.getProperty("car.include-inlink-entities")!= null);
+        PrintWriter runFile = null;
+        try {
+            runFile = new PrintWriter(runFileName);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        if(cfg.queryAsSection ) {
+            FileInputStream fileInputStream = null;
+            try {
+                fileInputStream = new FileInputStream(queryCborFile);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+            for (Data.Page page : DeserializeData.iterableAnnotations(fileInputStream)) {
+                HashSet<String> alreadyQueried = new HashSet<>();
+                System.out.println("\n\nPage: " + page.getPageId());
+                final ArrayList<String> queryEntities =(includeInlinkEntities) ? page.getPageMetadata().getInlinkIds(): new ArrayList<>();
+                for (List<Data.Section> sectionPath : page.flatSectionPaths()) {
+                    System.out.println();
+                    System.out.println(Data.sectionPathId(page.getPageId(), sectionPath) + "   \t " + Data.sectionPathHeadings(sectionPath));
+
+                    final String queryStr = queryStringBuilder.buildSectionQueryStr(page, sectionPath);
+                    final String queryId = Data.sectionPathId(page.getPageId(), sectionPath);
+                    if(!alreadyQueried.contains(queryId)) {
+                        try {
+                            expandedRetrievalModels(cfg, searcher, queryBuilder, runFile, queryStr, queryId, queryEntities,
+                                    expansionModel, numResults, numRmExpansionDocs, numEcmExpansionDocs, numRmExpansionTerms, queryModel);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        alreadyQueried.add(queryId);
+                    }
+                }
+            }
+            System.out.println();
+        }
+        else {
+            FileInputStream fileInputStream = null;
+            try {
+                fileInputStream = new FileInputStream(queryCborFile);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+            HashSet<String> alreadyQueried = new HashSet<>();
+            for (Data.Page page : DeserializeData.iterableAnnotations(fileInputStream)) {
+                if (!cfg.outputAsRun)  System.out.println("\n\nPage: "+page.getPageId());
+
+                final String queryStr = queryStringBuilder.buildSectionQueryStr(page, Collections.emptyList());
+                final String queryId = page.getPageId();
+                final ArrayList<String> queryEntities =(includeInlinkEntities) ? page.getPageMetadata().getInlinkIds(): new ArrayList<>();
+                if(!alreadyQueried.contains(queryId)) {
+                    try {
+                        expandedRetrievalModels(cfg, searcher, queryBuilder, runFile, queryStr, queryId, queryEntities,
+                                expansionModel, numResults, numRmExpansionDocs, numEcmExpansionDocs, numRmExpansionTerms, queryModel);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    alreadyQueried.add(queryId);
+                }
+            }
+            System.out.println();
+        }
+
+        System.out.println("Written to "+runFileName);
+        assert runFile != null;
+        runFile.close();
+
+    }
+
     private final static boolean produceEcmEntityRanking = true;
 
     private final static PrintStream SYSTEM_NULL = new PrintStream(new OutputStream() {
@@ -202,7 +346,7 @@ public class TrecCarLuceneQuery {
 
     }
 
-    static void usage() {
+    public static void usage() {
         System.out.println("Command line parameters: (paragraph|page|entity|ecm|aspect) " +
                 " (section|page) (run|display) OutlineCBOR INDEX RUNFile" +
                 " (sectionPath|all|subtree|title|leafheading|interior)" +
