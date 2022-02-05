@@ -11,6 +11,11 @@ public class ProjectMain {
     public static void main(@NotNull String[] args) {
         System.setProperty("file.encoding", "UTF-8");
 
+        if("--tool-version".equals(args[0])) {
+            System.out.println("11");
+            System.exit(0);
+        }
+
         String mode = args[0];
 
         if (mode.equals("index")) {
@@ -50,16 +55,15 @@ public class ProjectMain {
             String analyzerStr = args[10];
             int numResults = Integer.parseInt(args[11]);
             int numRmExpansionDocs = (args.length > 12)? Integer.parseInt(args[12]): 20;
-            int numEcmExpansionDocs = (args.length > 13)? Integer.parseInt(args[13]): 100;
-            int numRmExpansionTerms = (args.length > 14)? Integer.parseInt(args[14]): 20;
+            int numRmExpansionTerms = (args.length > 13)? Integer.parseInt(args[13]): 20;
 
             List<String> searchFields = new ArrayList<>();
-            if (args.length  > 15) {
-                searchFields = Arrays.asList(Arrays.copyOfRange(args, 15, args.length));
+            if (args.length  > 14) {
+                searchFields = Arrays.asList(Arrays.copyOfRange(args, 14, args.length));
             }
 
             new TrecCarLuceneQuery(representation,queryType,output,queryCborFile,indexPath,runFileName,queryModel,
-                    retrievalModel,expansionModel,analyzerStr,numResults,numRmExpansionDocs,numEcmExpansionDocs,
+                    retrievalModel,expansionModel,analyzerStr,numResults,numRmExpansionDocs,
                     numRmExpansionTerms,searchFields);
 
         } else {

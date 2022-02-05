@@ -6,7 +6,7 @@
 
     <groupId>com.github.laura-dietz</groupId>
     <artifactId>trec-car-methods</artifactId>
-    <version>0.15</version>
+    <version>0.16</version>
     <packaging>jar</packaging>
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
@@ -24,7 +24,7 @@
   	    <dependency>
             <groupId>com.github.TREMA-UNH</groupId>
             <artifactId>trec-car-tools-java</artifactId>
-            <version>15</version>
+            <version>19</version>
         </dependency>
         <dependency>
             <groupId>co.nstant.in</groupId>
@@ -46,19 +46,19 @@
         <dependency>
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-core</artifactId>
-            <version>8.7.0</version>
+            <version>9.0.0</version>
         </dependency>
 
         <dependency>
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-analyzers-common</artifactId>
-            <version>8.7.0</version>
+            <version>8.11.1</version>
         </dependency>
 
         <dependency>
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-backward-codecs</artifactId>
-            <version>8.7.0</version>
+            <version>9.0.0</version>
         </dependency>
 
     </dependencies>

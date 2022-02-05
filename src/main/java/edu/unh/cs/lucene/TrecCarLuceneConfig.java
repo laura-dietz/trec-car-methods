@@ -7,34 +7,35 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * User: dietz
- * Date: 1/5/18
- * Time: 5:58 PM
+ * Configuration class for various Lucene representations.
+ * @author Laura Dietz
  */
 public class TrecCarLuceneConfig {
 
-    public static LuceneIndexConfig getLuceneIndexConfig(String representation) {
-        LuceneIndexConfig cfg = pageConfig();
+    public static LuceneIndexConfig getLuceneIndexConfig(@NotNull String representation) {
+        LuceneIndexConfig cfg;
 
-        if (representation.equals("entity")) {
-            cfg = entityConfig();
-        }
-        else if (representation.equals("paragraph")) {
-            cfg = paragraphConfig();
-        }
-        else if (representation.equals("page")) {
-            cfg = pageConfig();
-        }
-        else if (representation.equals("ecm")) {
-            cfg = ecmConfig();
-        }
-        else if (representation.equals("aspect")) {
-            cfg = aspectConfig();
-        }
-        else if (representation.equals("names")) {
-            cfg = namesConfig();
-        } else {
-            throw new UnsupportedOperationException("Unknown index type "+representation);
+        switch (representation) {
+            case "entity":
+                cfg = entityConfig();
+                break;
+            case "paragraph":
+                cfg = paragraphConfig();
+                break;
+            case "page":
+                cfg = pageConfig();
+                break;
+            case "ecm":
+                cfg = ecmConfig();
+                break;
+            case "aspect":
+                cfg = aspectConfig();
+                break;
+            case "names":
+                cfg = namesConfig();
+                break;
+            default:
+                throw new UnsupportedOperationException("Unknown index type " + representation);
         }
         return cfg;
     }
@@ -85,15 +86,9 @@ public class TrecCarLuceneConfig {
             return searchFields;
         }
 
-        public boolean isPageConfig() {
-            return isPageConfig;
-        }
-
-        public boolean isEmitsList() {
-            return emitsList;
-        }
     }
 
+    @NotNull
     public static LuceneIndexConfig paragraphConfig() {
         final LuceneIndexConfig config = new LuceneIndexConfig();
         config.indexName = "paragraph.lucene";
@@ -113,6 +108,7 @@ public class TrecCarLuceneConfig {
         return config;
     }
 
+    @NotNull
     public static LuceneIndexConfig entityConfig() {
         final LuceneIndexConfig config = new LuceneIndexConfig();
         config.indexName = "entity.lucene";
@@ -122,6 +118,7 @@ public class TrecCarLuceneConfig {
         return config;
     }
 
+    @NotNull
     public static LuceneIndexConfig ecmConfig() {
         final LuceneIndexConfig config = new LuceneIndexConfig();
         config.indexName = "ecm.lucene";
@@ -132,6 +129,7 @@ public class TrecCarLuceneConfig {
         return config;
     }
 
+    @NotNull
     public static LuceneIndexConfig aspectConfig() {
         final LuceneIndexConfig config = new LuceneIndexConfig();
         config.indexName = "aspect.lucene";
@@ -142,6 +140,7 @@ public class TrecCarLuceneConfig {
         return config;
     }
 
+    @NotNull
     public static LuceneIndexConfig namesConfig() {
         final LuceneIndexConfig config = new LuceneIndexConfig();
         config.indexName = "names.lucene";
@@ -155,8 +154,8 @@ public class TrecCarLuceneConfig {
 
     public static class LuceneQueryConfig {
         LuceneIndexConfig indexConfig;
-        boolean outputAsRun = true;
-        boolean queryAsSection = true;
+        boolean outputAsRun;
+        boolean queryAsSection;
 
 
         public LuceneQueryConfig(LuceneIndexConfig indexConfig, boolean outputAsRun, boolean queryAsSection) {
@@ -171,10 +170,6 @@ public class TrecCarLuceneConfig {
 
         public boolean isOutputAsRun() {
             return outputAsRun;
-        }
-
-        public boolean isQueryAsSection() {
-            return queryAsSection;
         }
     }
 

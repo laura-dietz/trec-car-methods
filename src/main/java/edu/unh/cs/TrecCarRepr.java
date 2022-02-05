@@ -6,6 +6,7 @@ import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.miscellaneous.PerFieldAnalyzerWrapper;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -18,21 +19,15 @@ import java.util.Map;
 public interface TrecCarRepr {
 
     enum TrecCarSearchField {
-        Id(0), Text(1), Headings(2), Title(3), AnchorNames(4), DisambiguationNames(5), CategoryNames(6)
-        , InlinkIds(7), OutlinkIds(8), EntityLinks(9), Entity(10), LeadText(11);
+        Id(0), Text(1), Headings(2), Title(3), AnchorNames(4),
+        DisambiguationNames(5), CategoryNames(6),InlinkIds(7), OutlinkIds(8),
+        EntityLinks(9), Entity(10), LeadText(11), WikiDataQId(12);
 
         private int value;
-        private TrecCarSearchField(int value) {
+        TrecCarSearchField(int value) {
             this.value = value;
         }
 
-        private static TrecCarSearchField[] values = null;
-        public static TrecCarSearchField fromInt(int i) {
-            if (TrecCarSearchField.values == null) {
-                TrecCarSearchField.values = TrecCarSearchField.values();
-            }
-            return TrecCarSearchField.values[i];
-        }
     }
 
     TrecCarSearchField getIdField();
@@ -42,6 +37,7 @@ public interface TrecCarRepr {
 
     Analyzer getAnalyzer(String analyzerStr);
 
+    @NotNull
     static Analyzer defaultAnalyzer(final String analyzerStr) {
 
         final Analyzer textAnalyzer = ("std".equals(analyzerStr))? new StandardAnalyzer():
@@ -52,6 +48,7 @@ public interface TrecCarRepr {
         fieldAnalyzers.put(TrecCarRepr.TrecCarSearchField.OutlinkIds.name(), new WhitespaceAnalyzer());
         fieldAnalyzers.put(TrecCarRepr.TrecCarSearchField.InlinkIds.name(), new WhitespaceAnalyzer());
         fieldAnalyzers.put(TrecCarRepr.TrecCarSearchField.Id.name(), new WhitespaceAnalyzer());
+        fieldAnalyzers.put(TrecCarSearchField.WikiDataQId.name(), new WhitespaceAnalyzer());
         final DelegatingAnalyzerWrapper queryAnalyzer = new PerFieldAnalyzerWrapper(textAnalyzer, fieldAnalyzers);
         return queryAnalyzer;
     }

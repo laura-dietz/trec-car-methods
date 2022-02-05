@@ -43,13 +43,13 @@ public class TrecCarParagraph implements TrecCarRepr {
   }
 
 
-  public String idParagraph(Data.Paragraph p){
+  public String idParagraph(@NotNull Data.Paragraph p){
         return p.getParaId();
     }
 
 
     @NotNull
-    public HashMap<TrecCarSearchField, List<String>> convertParagraph(Data.Paragraph p){
+    public HashMap<TrecCarSearchField, List<String>> convertParagraph(@NotNull Data.Paragraph p){
         final HashMap<TrecCarSearchField, List<String>> result = new HashMap<>();
         result.put(TrecCarSearchField.Text, Collections.singletonList(p.getTextOnly()));
         result.put(TrecCarSearchField.EntityLinks, TrecCarReprUtils.getEntitiesOnly(p));
