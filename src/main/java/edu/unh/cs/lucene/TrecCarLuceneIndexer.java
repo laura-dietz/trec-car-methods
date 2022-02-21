@@ -19,13 +19,11 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.stream.StreamSupport;
 
 /*
  * ==========================================
@@ -103,9 +101,10 @@ final public class TrecCarLuceneIndexer {
     }
 
     private void paragraphMode(String cborFile,
-                                      String indexPath,
-                                      TrecCarParagraph trecCarParaRepr,
-                                      IndexWriter indexWriter) throws IOException {
+                               String indexPath,
+                               TrecCarParagraph trecCarParaRepr,
+                               IndexWriter indexWriter) throws IOException {
+
 
         BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(cborFile));
         List<String> seen = new ArrayList<>();
@@ -137,6 +136,32 @@ final public class TrecCarLuceneIndexer {
         indexWriter.commit();
         indexWriter.close();
     }
+
+//    private static void paragraphMode(String paragraphCborFile,
+//                                      String indexPath,
+//                                      TrecCarParagraph trecCarParaRepr,
+//                                      IndexWriter indexWriter) throws IOException {
+//        final FileInputStream fileInputStream2 = new FileInputStream(paragraphCborFile);
+//
+//        System.out.println("Creating paragraph index in "+indexPath);
+//        final Iterator<Data.Paragraph> paragraphIterator = DeserializeData.iterParagraphs(fileInputStream2);
+//
+//        for (int i=1; paragraphIterator.hasNext(); i++){
+//            final Data.Paragraph paragraph = paragraphIterator.next();
+//            final Document doc = trecCarParaRepr.paragraphToLuceneDoc(paragraph);
+//            indexWriter.addDocument(doc);
+//            if (i % 10000 == 0) {
+//                System.out.print('.');
+//                indexWriter.commit();
+//            }
+//        }
+//
+//        System.out.println("\n Done indexing.");
+//
+//        indexWriter.commit();
+//        indexWriter.close();
+//    }
+
 
     private void pageParagraphs(@NotNull Data.Page page, List<Data.Paragraph> paragraphs) {
         for(Data.PageSkeleton skeleton: page.getSkeleton()){

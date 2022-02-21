@@ -3,6 +3,7 @@ package edu.unh.cs.lucene;
 import edu.unh.cs.TrecCarRepr;
 import edu.unh.cs.treccar_v2.Data;
 import edu.unh.cs.treccar_v2.read_data.DeserializeData;
+import me.tongfei.progressbar.ProgressBar;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
@@ -122,7 +123,7 @@ public class TrecCarLuceneQuery {
             }
             for (Data.Page page : DeserializeData.iterableAnnotations(bufferedInputStream)) {
                 HashSet<String> alreadyQueried = new HashSet<>();
-                System.out.println("\n\nPage: " + page.getPageId());
+                //System.out.println("\n\nPage: " + page.getPageId());
                 for (List<Data.Section> sectionPath : page.flatSectionPaths()) {
                     System.out.println();
                     System.out.println(Data.sectionPathId(page.getPageId(), sectionPath) + "   \t " + Data.sectionPathHeadings(sectionPath));
@@ -133,6 +134,7 @@ public class TrecCarLuceneQuery {
                         try {
                             expandedRetrievalModels(cfg, searcher, queryBuilder, runFile, queryStr, queryId,
                                     expansionModel, numResults, numRmExpansionDocs, numRmExpansionTerms, queryModel);
+                            System.out.println("Done: " + page.getPageId());
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
@@ -149,7 +151,6 @@ public class TrecCarLuceneQuery {
             }
             HashSet<String> alreadyQueried = new HashSet<>();
             for (Data.Page page : DeserializeData.iterableAnnotations(bufferedInputStream)) {
-                if (!cfg.outputAsRun)  System.out.println("\n\nPage: "+page.getPageId());
 
                 final String queryStr = queryStringBuilder.buildSectionQueryStr(page, Collections.emptyList());
                 final String queryId = page.getPageId();
@@ -157,6 +158,7 @@ public class TrecCarLuceneQuery {
                     try {
                         expandedRetrievalModels(cfg, searcher, queryBuilder, runFile, queryStr, queryId,
                                 expansionModel, numResults, numRmExpansionDocs, numRmExpansionTerms, queryModel);
+                        System.out.println("Done: " + page.getPageId());
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -400,7 +402,7 @@ public class TrecCarLuceneQuery {
 
         List<Map.Entry<String, Float>> expansionTerms = allWordFreqs.subList(0, Math.min(takeKTerms, allWordFreqs.size()));
 
-        System.out.println("RM3 Expansions for \""+queryStr+ "\": "+ expansionTerms);
+        // System.out.println("RM3 Expansions for \""+queryStr+ "\": "+ expansionTerms);
         return expansionTerms;
     }
 
@@ -445,10 +447,7 @@ public class TrecCarLuceneQuery {
             return Float.compare(kv2.getValue(), kv1.getValue()); // sort descending by flipping
         });
 
-        List<Map.Entry<String, Float>> expansionTerms = allWordFreq.subList(0, Math.min(takeKTerms, allWordFreq.size()));
-
-        System.out.println("other Expansions: "+ expansionTerms);
-        return expansionTerms;
+        return allWordFreq.subList(0, Math.min(takeKTerms, allWordFreq.size()));
     }
 
 
@@ -474,7 +473,7 @@ public class TrecCarLuceneQuery {
 
         TopDocs tops = searcher.search(booleanQuery, numResults);
         ScoreDoc[] scoreDoc = tops.scoreDocs;
-        System.out.println("Found "+scoreDoc.length+" RM3 results.");
+
 
         outputQueryResults(searcher, queryId, runFile, trecCarRepr, scoreDoc, debugStream, queryModel);
         return scoreDoc;
@@ -493,7 +492,7 @@ public class TrecCarLuceneQuery {
         final BooleanQuery booleanQuery = queryBuilder.toQuery(queryStr);
         TopDocs tops = searcher.search(booleanQuery, numResults);
         ScoreDoc[] scoreDoc = tops.scoreDocs;
-        System.out.println("Found "+scoreDoc.length+" results.");
+
 
         outputQueryResults(searcher, queryId, runFile, trecCarRepr, scoreDoc, debugStream, queryModel);
 
@@ -578,7 +577,7 @@ public class TrecCarLuceneQuery {
 
             TopDocs tops = searcher.search(booleanQuery, numResults);
             ScoreDoc[] scoreDoc2 = tops.scoreDocs;
-            System.out.println("Found "+scoreDoc2.length+" Entity-RM results.");
+
 
             outputQueryResults(searcher, queryId, runFile, trecCarRepr, scoreDoc2, debugStream, queryModel);
 
