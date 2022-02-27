@@ -100,59 +100,34 @@ final public class TrecCarLuceneIndexer {
         indexWriter.close();
     }
 
-    private void paragraphMode(String cborFile,
-                               String indexPath,
-                               TrecCarParagraph trecCarParaRepr,
-                               IndexWriter indexWriter) throws IOException {
-
-
-        BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(cborFile));
-        List<String> seen = new ArrayList<>();
-
-        System.out.println("Creating paragraph index in "+indexPath);
-        final Iterator<Data.Page> pageIterator = DeserializeData.iterAnnotations(bufferedInputStream);
-
-        for (int i = 1; pageIterator.hasNext(); i++){
-            final Data.Page page = pageIterator.next();
-            List<Data.Paragraph> paragraphs = new ArrayList<>();
-            pageParagraphs(page, paragraphs);
-            for (Data.Paragraph paragraph : paragraphs) {
-                if (!seen.contains(paragraph.getParaId())) {
-                    // Check for duplicates
-                    // Only add paragraphs not yet added
-                    seen.add(paragraph.getParaId());
-                    final Document doc = trecCarParaRepr.paragraphToLuceneDoc(paragraph);
-                    indexWriter.addDocument(doc);
-                    if (i % 10000 == 0) {
-                        System.out.print('.');
-                        indexWriter.commit();
-                    }
-                }
-            }
-        }
-
-        System.out.println("\n Done indexing.");
-
-        indexWriter.commit();
-        indexWriter.close();
-    }
-
-//    private static void paragraphMode(String paragraphCborFile,
-//                                      String indexPath,
-//                                      TrecCarParagraph trecCarParaRepr,
-//                                      IndexWriter indexWriter) throws IOException {
-//        final FileInputStream fileInputStream2 = new FileInputStream(paragraphCborFile);
+//    private void paragraphMode(String cborFile,
+//                               String indexPath,
+//                               TrecCarParagraph trecCarParaRepr,
+//                               IndexWriter indexWriter) throws IOException {
+//
+//
+//        BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(cborFile));
+//        List<String> seen = new ArrayList<>();
 //
 //        System.out.println("Creating paragraph index in "+indexPath);
-//        final Iterator<Data.Paragraph> paragraphIterator = DeserializeData.iterParagraphs(fileInputStream2);
+//        final Iterator<Data.Page> pageIterator = DeserializeData.iterAnnotations(bufferedInputStream);
 //
-//        for (int i=1; paragraphIterator.hasNext(); i++){
-//            final Data.Paragraph paragraph = paragraphIterator.next();
-//            final Document doc = trecCarParaRepr.paragraphToLuceneDoc(paragraph);
-//            indexWriter.addDocument(doc);
-//            if (i % 10000 == 0) {
-//                System.out.print('.');
-//                indexWriter.commit();
+//        for (int i = 1; pageIterator.hasNext(); i++){
+//            final Data.Page page = pageIterator.next();
+//            List<Data.Paragraph> paragraphs = new ArrayList<>();
+//            pageParagraphs(page, paragraphs);
+//            for (Data.Paragraph paragraph : paragraphs) {
+//                if (!seen.contains(paragraph.getParaId())) {
+//                    // Check for duplicates
+//                    // Only add paragraphs not yet added
+//                    seen.add(paragraph.getParaId());
+//                    final Document doc = trecCarParaRepr.paragraphToLuceneDoc(paragraph);
+//                    indexWriter.addDocument(doc);
+//                    if (i % 10000 == 0) {
+//                        System.out.print('.');
+//                        indexWriter.commit();
+//                    }
+//                }
 //            }
 //        }
 //
@@ -162,26 +137,51 @@ final public class TrecCarLuceneIndexer {
 //        indexWriter.close();
 //    }
 
+    private static void paragraphMode(String paragraphCborFile,
+                                      String indexPath,
+                                      TrecCarParagraph trecCarParaRepr,
+                                      IndexWriter indexWriter) throws IOException {
+        final FileInputStream fileInputStream2 = new FileInputStream(paragraphCborFile);
 
-    private void pageParagraphs(@NotNull Data.Page page, List<Data.Paragraph> paragraphs) {
-        for(Data.PageSkeleton skeleton: page.getSkeleton()){
-            if (skeleton instanceof Data.Section) {
-                sectionParagraphs((Data.Section) skeleton, paragraphs);
-            } else if (skeleton instanceof Data.Para) {
-                paragraphs.add(((Data.Para) skeleton).getParagraph());
+        System.out.println("Creating paragraph index in "+indexPath);
+        final Iterator<Data.Paragraph> paragraphIterator = DeserializeData.iterParagraphs(fileInputStream2);
+
+        for (int i=1; paragraphIterator.hasNext(); i++){
+            final Data.Paragraph paragraph = paragraphIterator.next();
+            final Document doc = trecCarParaRepr.paragraphToLuceneDoc(paragraph);
+            indexWriter.addDocument(doc);
+            if (i % 10000 == 0) {
+                System.out.print('.');
+                indexWriter.commit();
             }
         }
+
+        System.out.println("\n Done indexing.");
+
+        indexWriter.commit();
+        indexWriter.close();
     }
 
-    private void sectionParagraphs(@NotNull Data.Section section, List<Data.Paragraph> paragraphs) {
-        for (Data.PageSkeleton skeleton: section.getChildren()) {
-            if (skeleton instanceof Data.Section) {
-                sectionParagraphs((Data.Section) skeleton, paragraphs);
-            } else if (skeleton instanceof Data.Para) {
-                paragraphs.add(((Data.Para) skeleton).getParagraph());
-            }
-        }
-    }
+
+//    private void pageParagraphs(@NotNull Data.Page page, List<Data.Paragraph> paragraphs) {
+//        for(Data.PageSkeleton skeleton: page.getSkeleton()){
+//            if (skeleton instanceof Data.Section) {
+//                sectionParagraphs((Data.Section) skeleton, paragraphs);
+//            } else if (skeleton instanceof Data.Para) {
+//                paragraphs.add(((Data.Para) skeleton).getParagraph());
+//            }
+//        }
+//    }
+//
+//    private void sectionParagraphs(@NotNull Data.Section section, List<Data.Paragraph> paragraphs) {
+//        for (Data.PageSkeleton skeleton: section.getChildren()) {
+//            if (skeleton instanceof Data.Section) {
+//                sectionParagraphs((Data.Section) skeleton, paragraphs);
+//            } else if (skeleton instanceof Data.Para) {
+//                paragraphs.add(((Data.Para) skeleton).getParagraph());
+//            }
+//        }
+//    }
 
 
     @NotNull

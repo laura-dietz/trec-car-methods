@@ -6,7 +6,7 @@
 
     <groupId>com.github.laura-dietz</groupId>
     <artifactId>trec-car-methods</artifactId>
-    <version>0.16</version>
+    <version>0.15</version>
     <packaging>jar</packaging>
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
@@ -24,7 +24,7 @@
   	    <dependency>
             <groupId>com.github.TREMA-UNH</groupId>
             <artifactId>trec-car-tools-java</artifactId>
-            <version>19</version>
+            <version>20</version>
         </dependency>
         <dependency>
             <groupId>co.nstant.in</groupId>
