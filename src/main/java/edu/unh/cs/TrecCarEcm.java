@@ -44,16 +44,11 @@ public class TrecCarEcm implements TrecCarPageRepr {
         };
     }
 
-  @Override
-  public Analyzer getAnalyzer(String analyzerStr) { return TrecCarRepr.defaultAnalyzer(analyzerStr); }
+    @Override
+    public Analyzer getAnalyzer(String analyzerStr) { return TrecCarRepr.defaultAnalyzer(analyzerStr); }
 
-  public String idEcm(EntityContextModel.Ecm ecm) {
+    public String idEcm(@NotNull EntityContextModel.Ecm ecm) {
         return ecm.getEcmId();
-    }
-
-
-    public String idPage(Data.Page p) {
-        return null;
     }
 
     @NotNull
@@ -67,7 +62,7 @@ public class TrecCarEcm implements TrecCarPageRepr {
     }
 
 
-    public HashMap<TrecCarSearchField, List<String>> convertEcm(EntityContextModel.Ecm ecm){
+    public HashMap<TrecCarSearchField, List<String>> convertEcm(@NotNull EntityContextModel.Ecm ecm){
         final HashMap<TrecCarSearchField, List<String>> result = new HashMap<>();
         result.put(TrecCarSearchField.Text, Collections.singletonList(ecm.getText()));
         result.put(TrecCarSearchField.OutlinkIds, ecm.getAllEntityIds());
@@ -94,18 +89,12 @@ public class TrecCarEcm implements TrecCarPageRepr {
     }
 
     @NotNull
-    private Document singlePageToLuceneDoc(String id, HashMap<TrecCarSearchField, List<String>> repr) {
+    private Document singlePageToLuceneDoc(String id, @NotNull HashMap<TrecCarSearchField, List<String>> repr) {
         final Document doc = new Document();
         doc.add(new StringField(getIdField().name(), id, Field.Store.YES));  // don't tokenize this!
 
         for (TrecCarSearchField field : repr.keySet()) {
-            if (field == TrecCarSearchField.OutlinkIds || field == TrecCarSearchField.InlinkIds) {
-                // todo not sure how to add multiple of these without being butchered by the standard analyser
-                // StringField would take it as a single token, but that's also not really what we want here.
-                doc.add(new TextField(field.name(), String.join("\n", repr.get(field)), Field.Store.YES));
-            } else {
-                doc.add(new TextField(field.name(), String.join("\n", repr.get(field)), Field.Store.YES));
-            }
+            doc.add(new TextField(field.name(), String.join("\n", repr.get(field)), Field.Store.YES));
         }
         return doc;
     }

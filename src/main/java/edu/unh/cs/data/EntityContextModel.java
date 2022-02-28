@@ -18,7 +18,7 @@ public class EntityContextModel {
         public String pageTitle;
         public List<String> headings;
         public List<String> allEntities;
-        private List<String> leadText;
+        private final List<String> leadText;
 
         public Ecm(String paragraphId, String text, List<String> allEntities, List<String> allEntityIds, String pageTitle, List<String> headings, List<String> leadText) {
             this.paragraphId = paragraphId;

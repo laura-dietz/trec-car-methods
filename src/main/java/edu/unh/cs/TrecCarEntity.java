@@ -11,7 +11,8 @@ import org.jetbrains.annotations.NotNull;
 import java.util.*;
 
 /**
- * A search index representation of a trec car paragraph
+ * A search index representation of a Wikipedia entity.
+ * @author Laura Dietz
  */
 public class TrecCarEntity implements TrecCarPageRepr {
 
@@ -40,39 +41,39 @@ public class TrecCarEntity implements TrecCarPageRepr {
     return TrecCarRepr.defaultAnalyzer(analyzerStr);
   }
 
-  public String idPage(Data.Page p) {
+  public String idPage(@NotNull Data.Page p) {
         return p.getPageId();
     }
 
 
-    private static void paragraphContent(Data.Para paragraph, StringBuilder content) {
+    private static void paragraphContent(@NotNull Data.Para paragraph, @NotNull StringBuilder content) {
         content.append(paragraph.getParagraph().getTextOnly()).append('\n');
     }
 
 
-    private static void leadContent(Data.Page page, StringBuilder content) {
+    private static void leadContent(@NotNull Data.Page page, @NotNull StringBuilder content) {
         content.append(page.getPageName()).append('\n');
 
-        for (Data.PageSkeleton skel : page.getSkeleton()) {
-            if (skel instanceof Data.Para) paragraphContent((Data.Para) skel, content);
-            else {
-            }    // ignore other
+        for (Data.PageSkeleton skeleton : page.getSkeleton()) {
+            if (skeleton instanceof Data.Para) {
+                paragraphContent((Data.Para) skeleton, content);
+            }
         }
     }
 
 
-    private static void outLinkIds(List<Data.PageSkeleton> skels, ArrayList<String> content) {
-        for (Data.PageSkeleton skel : skels) {
-            if (skel instanceof Data.Para) paragraphOutlinkIds(((Data.Para) skel).getParagraph(), content);
-            if (skel instanceof Data.Section) outLinkIds(((Data.Section) skel).getChildren(), content);
-            else {
-            }    // ignore other
+    private static void outLinkIds(@NotNull List<Data.PageSkeleton> skeletons, ArrayList<String> content) {
+        for (Data.PageSkeleton skeleton : skeletons) {
+            if (skeleton instanceof Data.Para) {
+                paragraphOutLinkIds(((Data.Para) skeleton).getParagraph(), content);
+            } else if (skeleton instanceof Data.Section) {
+                outLinkIds(((Data.Section) skeleton).getChildren(), content);
+            }
         }
-
     }
 
 
-    private static void paragraphOutlinkIds(Data.Paragraph p, ArrayList<String> content) {
+    private static void paragraphOutLinkIds(@NotNull Data.Paragraph p, ArrayList<String> content) {
         for (Data.ParaBody body : p.getBodies()) {
             if (body instanceof Data.ParaLink) {
                 Data.ParaLink link = (Data.ParaLink) body;
@@ -103,31 +104,26 @@ public class TrecCarEntity implements TrecCarPageRepr {
         result.put(TrecCarSearchField.DisambiguationNames, p.getPageMetadata().getDisambiguationNames());
         result.put(TrecCarSearchField.CategoryNames, p.getPageMetadata().getCategoryNames());
         result.put(TrecCarSearchField.InlinkIds, p.getPageMetadata().getInlinkIds());
+        result.put(TrecCarSearchField.WikiDataQId, p.getPageMetadata().getWikiDataQid());
 
 
 
-        final ArrayList<String> outlinks = new ArrayList<>();
-        outLinkIds(p.getSkeleton(), outlinks);
-        result.put(TrecCarSearchField.OutlinkIds, outlinks);
+        final ArrayList<String> outLinks = new ArrayList<>();
+        outLinkIds(p.getSkeleton(), outLinks);
+        result.put(TrecCarSearchField.OutlinkIds, outLinks);
 
         // Todo finish
         return Collections.singletonMap(idPage(p), result);
     }
 
-    private List<String> freqListToStrings(ArrayList<Data.ItemWithFrequency<String>> inlinkAnchors) {
+    @NotNull
+    private List<String> freqListToStrings(@NotNull ArrayList<Data.ItemWithFrequency<String>> inLinkAnchors) {
         final ArrayList<String> result = new ArrayList<>();
-        for (Data.ItemWithFrequency<String> linkAnchor : inlinkAnchors) {
+        for (Data.ItemWithFrequency<String> linkAnchor : inLinkAnchors) {
             for (int i = 0; i < linkAnchor.getFrequency(); i++) {
                 result.add(linkAnchor.getItem());
             }
         }
-        return result;
-    }
-
-
-    private List<String> getOutlinkIds(Data.Page p) {
-        final ArrayList<String> result = new ArrayList<>();
-
         return result;
     }
 
@@ -147,18 +143,12 @@ public class TrecCarEntity implements TrecCarPageRepr {
     }
 
     @NotNull
-    private Document singlePageToLuceneDoc(String id, HashMap<TrecCarSearchField, List<String>> repr) {
+    private Document singlePageToLuceneDoc(String id, @NotNull HashMap<TrecCarSearchField, List<String>> repr) {
         final Document doc = new Document();
         doc.add(new StringField(getIdField().name(), id, Field.Store.YES));  // don't tokenize this!
 
         for (TrecCarSearchField field : repr.keySet()) {
-            if (field == TrecCarSearchField.OutlinkIds || field == TrecCarSearchField.InlinkIds) {
-                // todo not sure how to add multiple of these without being butchered by the standard analyser
-                // StringField would take it as a single token, but that's also not really what we want here.
-                doc.add(new TextField(field.name(), String.join("\n", repr.get(field)), Field.Store.YES));
-            } else {
-                doc.add(new TextField(field.name(), String.join("\n", repr.get(field)), Field.Store.YES));
-            }
+            doc.add(new TextField(field.name(), String.join("\n", repr.get(field)), Field.Store.YES));
         }
         return doc;
     }
