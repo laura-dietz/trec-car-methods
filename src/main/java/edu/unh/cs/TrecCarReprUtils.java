@@ -1,6 +1,7 @@
 package edu.unh.cs;
 
 import edu.unh.cs.treccar_v2.Data;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,7 +12,8 @@ import java.util.List;
  * Time: 2:37 PM
  */
 public class TrecCarReprUtils {
-    public static List<String> getEntitiesOnly(Data.Paragraph p) {
+    @NotNull
+    public static List<String> getEntitiesOnly(@NotNull Data.Paragraph p) {
         List<String> result = new ArrayList<>();
         for(Data.ParaBody body: p.getBodies()){
             if(body instanceof Data.ParaLink){
@@ -21,7 +23,8 @@ public class TrecCarReprUtils {
         return result;
     }
 
-    public static List<String> getEntityIdsOnly(Data.Paragraph p) {
+    @NotNull
+    public static List<String> getEntityIdsOnly(@NotNull Data.Paragraph p) {
         List<String> result = new ArrayList<>();
         for(Data.ParaBody body: p.getBodies()){
             if(body instanceof Data.ParaLink){

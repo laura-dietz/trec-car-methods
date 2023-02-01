@@ -8,22 +8,24 @@ import java.util.List;
 import java.util.Queue;
 
 /**
- * User: dietz
- * Date: 1/17/18
- * Time: 5:18 PM
+ * Builds a Lucene query.
+ * @author Laura Dietz
  */
 public class QueryBuilder {
 
-    static public interface QueryStringBuilder {
+    public interface QueryStringBuilder {
         @NotNull
         String buildSectionQueryStr(Data.Page page, List<Data.Section> sectionPath);
     }
 
+    /**
+     * Builds a query from the page name and top-level section headings of the Wikipedia page.
+     */
     static public class SectionPathQueryStringBuilder implements QueryStringBuilder {
         final static QueryStringBuilder defaultQueryStringBuilder = new TitleQueryStringBuilder();
 
         @NotNull
-        public String buildSectionQueryStr(Data.Page page, List<Data.Section> sectionPath) {
+        public String buildSectionQueryStr(Data.Page page, @NotNull List<Data.Section> sectionPath) {
             if(sectionPath.isEmpty()) {
                 System.err.println("Warning: sectionPath is empty. This QueryStringBuilder is identical to TitleQueryStringBuilder");
                 return defaultQueryStringBuilder.buildSectionQueryStr(page, sectionPath);
@@ -37,21 +39,24 @@ public class QueryBuilder {
             }
         }
     }
+
+    /**
+     * Build a query from the page name and the top-level section headings (including the headings of the child sections).
+     */
     static public class OutlineQueryStringBuilder implements QueryStringBuilder {
         @NotNull
-        public String buildSectionQueryStr(Data.Page page, List<Data.Section> sectionPath) {
+        public String buildSectionQueryStr(@NotNull Data.Page page, List<Data.Section> sectionPath) {
             StringBuilder queryStr = new StringBuilder();
-            Queue<Data.PageSkeleton> queue = new ArrayDeque<>();
 
             queryStr.append(page.getPageName());
-            queue.addAll(page.getSkeleton());
+            Queue<Data.PageSkeleton> queue = new ArrayDeque<>(page.getSkeleton());
 
             while(!queue.isEmpty()){
-                Data.PageSkeleton skel = queue.poll();
-                if( skel instanceof Data.Section ) {
-                    Data.Section section = (Data.Section) skel;
+                Data.PageSkeleton skeleton = queue.poll();
+                if( skeleton instanceof Data.Section ) {
+                    Data.Section section = (Data.Section) skeleton;
                     queryStr.append(" ").append(section.getHeading());
-                    queue.addAll(((Data.Section) skel).getChildren());
+                    queue.addAll(((Data.Section) skeleton).getChildren());
                 }
             }
 
@@ -62,25 +67,24 @@ public class QueryBuilder {
     static public class SubtreeQueryStringBuilder implements QueryStringBuilder {
         final static QueryStringBuilder defaultQueryStringBuilder = new OutlineQueryStringBuilder();
         @NotNull
-        public String buildSectionQueryStr(Data.Page page, List<Data.Section> sectionPath) {
+        public String buildSectionQueryStr(Data.Page page, @NotNull List<Data.Section> sectionPath) {
             if(sectionPath.isEmpty()) {
                 System.err.println("Warning: sectionPath is empty. This QueryStringBuilder is identical to OutlineQueryStringBuilder");
                 return defaultQueryStringBuilder.buildSectionQueryStr(page, sectionPath);
             } else {
                 StringBuilder queryStr = new StringBuilder();
-                Queue<Data.PageSkeleton> queue = new ArrayDeque<>();
 
                 Data.Section leafSection = sectionPath.get(sectionPath.size() - 1);
 
                 queryStr.append(leafSection.getHeading());
-                queue.addAll(leafSection.getChildren());
+                Queue<Data.PageSkeleton> queue = new ArrayDeque<>(leafSection.getChildren());
 
                 while (!queue.isEmpty()) {
-                    Data.PageSkeleton skel = queue.poll();
-                    if (skel instanceof Data.Section) {
-                        Data.Section section = (Data.Section) skel;
+                    Data.PageSkeleton skeleton = queue.poll();
+                    if (skeleton instanceof Data.Section) {
+                        Data.Section section = (Data.Section) skeleton;
                         queryStr.append(" ").append(section.getHeading());
-                        queue.addAll(((Data.Section) skel).getChildren());
+                        queue.addAll(((Data.Section) skeleton).getChildren());
                     }
                 }
 
@@ -90,7 +94,7 @@ public class QueryBuilder {
     }
     static public class TitleQueryStringBuilder implements QueryStringBuilder {
         @NotNull
-        public String buildSectionQueryStr(Data.Page page, List<Data.Section> sectionPath) {
+        public String buildSectionQueryStr(@NotNull Data.Page page, List<Data.Section> sectionPath) {
             return page.getPageName().replaceAll("\t", "s");
         }
     }
@@ -98,7 +102,7 @@ public class QueryBuilder {
         final static QueryStringBuilder defaultQueryStringBuilder = new TitleQueryStringBuilder();
 
         @NotNull
-        public String buildSectionQueryStr(Data.Page page, List<Data.Section> sectionPath) {
+        public String buildSectionQueryStr(Data.Page page, @NotNull List<Data.Section> sectionPath) {
             if(sectionPath.isEmpty()) {
                 System.err.println("Warning: sectionPath is empty. This QueryStringBuilder is identical to TitleQueryStringBuilder");
                 return defaultQueryStringBuilder.buildSectionQueryStr(page, sectionPath);
@@ -112,7 +116,7 @@ public class QueryBuilder {
     static public class InteriorHeadingQueryStringBuilder implements QueryStringBuilder {
         final static QueryStringBuilder defaultQueryStringBuilder = new TitleQueryStringBuilder();
         @NotNull
-        public String buildSectionQueryStr(Data.Page page, List<Data.Section> sectionPath) {
+        public String buildSectionQueryStr(Data.Page page, @NotNull List<Data.Section> sectionPath) {
             if(sectionPath.isEmpty()) {
                 System.err.println("Warning: sectionPath is empty. This QueryStringBuilder is identical to TitleQueryStringBuilder");
                 return defaultQueryStringBuilder.buildSectionQueryStr(page, sectionPath);
@@ -128,13 +132,10 @@ public class QueryBuilder {
     }
     static public class ParagraphQueryStringBuilder implements QueryStringBuilder {
         @NotNull
-        public String buildSectionQueryStr(Data.Page page, List<Data.Section> sectionPath) {
+        public String buildSectionQueryStr(@NotNull Data.Page page, List<Data.Section> sectionPath) {
             StringBuilder queryStr = new StringBuilder();
-            Queue<Data.PageSkeleton> queue = new ArrayDeque<>();
-            int paraCount = 0;
             int paraCharThresh = 200;
-//            queryStr.append(page.getPageName());
-            queue.addAll(page.getSkeleton());
+            Queue<Data.PageSkeleton> queue = new ArrayDeque<>(page.getSkeleton());
 
             while(!queue.isEmpty()){
                 Data.PageSkeleton skel = queue.poll();
@@ -144,7 +145,6 @@ public class QueryBuilder {
                 else if (skel instanceof Data.Para ){
                     Data.Paragraph para = ((Data.Para) skel).getParagraph();
                     queryStr.append(" ").append(para.getTextOnly());
-                    paraCount ++;
                     if (queryStr.length()>=paraCharThresh) {
                         return  queryStr.toString().replaceAll("\t", "s");
                     }

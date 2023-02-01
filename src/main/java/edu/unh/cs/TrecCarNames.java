@@ -35,36 +35,24 @@ public class TrecCarNames implements TrecCarPageRepr {
         return TrecCarSearchField.values();
     }
 
-  @Override
-  public Analyzer getAnalyzer(String analyzerStr) {
+    @Override
+    public Analyzer getAnalyzer(String analyzerStr) {
     return TrecCarRepr.defaultAnalyzer(analyzerStr);
   }
 
-  public String idPage(Data.Page p){
+    public String idPage(@NotNull Data.Page p){
         return p.getPageId();
     }
 
-    public String idSection(Data.Section s,Data.Page p){
-        return idPage(p)+'/'+s.getHeadingId();
-    }
-
-    private static void sectionHeadings(List<Data.PageSkeleton> children, StringBuilder content){
-        for(Data.PageSkeleton skel: children){
-            if(skel instanceof Data.Section) sectionHeadings(((Data.Section) skel).getChildren(), content);
-            else {}    // ignore other
-        }
-
-    }
-
-
-
-    private static void namesContent(Data.Page page, StringBuilder content){
+    private static void namesContent(@NotNull Data.Page page, @NotNull StringBuilder content){
         content.append(page.getPageName());
         content.append('\n');
 
-        int i=0;
-        for(Data.ItemWithFrequency<String> anchor:page.getPageMetadata().getInlinkAnchors()){
-            if(i>10) break;
+        int i = 0;
+        for(Data.ItemWithFrequency<String> anchor : page.getPageMetadata().getInlinkAnchors()) {
+            if ( i > 10) {
+                break;
+            }
             content.append(anchor.getItem());
             content.append(' ');
             i++;
@@ -119,7 +107,7 @@ public class TrecCarNames implements TrecCarPageRepr {
     }
 
     @NotNull
-    private Document singlePageToLuceneDoc(String id, HashMap<TrecCarSearchField, List<String>> repr) {
+    private Document singlePageToLuceneDoc(String id, @NotNull HashMap<TrecCarSearchField, List<String>> repr) {
         final Document doc = new Document();
         doc.add(new StringField(getIdField().name(), id, Field.Store.YES));  // don't tokenize this!
 
