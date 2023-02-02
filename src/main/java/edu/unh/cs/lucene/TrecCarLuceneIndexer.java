@@ -23,7 +23,6 @@ import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.stream.StreamSupport;
 
 /*
  * ==========================================
@@ -40,12 +39,11 @@ import java.util.stream.StreamSupport;
 /**
  * Builds a Lucene index representing a paragraph, page, entity, or top-level section (aspect) from Wikipedia.
  * @author Laura Dietz
- * @version 0.16
  */
 final public class TrecCarLuceneIndexer {
 
     public static void usage() {
-        System.out.println("Command line parameters: (paragraph|page|entity|ecm|aspect|names) CBOR LuceneINDEX (std|english)");
+        System.out.println("Command line parameters: index (paragraph|page|entity|ecm|aspect|names) CBOR LuceneINDEX (std|english)");
         System.exit(-1);
     }
 
@@ -55,6 +53,9 @@ final public class TrecCarLuceneIndexer {
                                 String analyzer) {
 
         TrecCarLuceneConfig.LuceneIndexConfig cfg = TrecCarLuceneConfig.getLuceneIndexConfig(representation);
+
+        File f = new File(indexPath+"/"+cfg.getIndexName());
+        if (f.exists()) f.delete();
 
         if(cfg.isPageConfig){
             try {
@@ -81,6 +82,7 @@ final public class TrecCarLuceneIndexer {
         BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(cborFile));
 
         System.out.println("Creating page index in "+indexPath);
+        final Set<String> seen = new TreeSet<String>();
 
         final Iterator<Data.Page> pageIterator = DeserializeData.iterAnnotations(bufferedInputStream);
 
@@ -88,7 +90,13 @@ final public class TrecCarLuceneIndexer {
             final Data.Page page = pageIterator.next();
             //System.out.println("PageId: " + page.getPageId() + " " + "WikiDataQid: " + page.getPageMetadata().getWikiDataQid());
             final List<Document> docs = trecCarPageRepr.pageToLuceneDoc(page);
-            indexWriter.addDocuments(docs);
+                if (!seen.contains(page.getPageId())) {
+                // Check for duplicates
+                // Only add documents not yet added
+                seen.add(page.getPageId());
+
+                indexWriter.addDocuments(docs);
+            }
             if (i % 10000 == 0) {
                 System.out.print('.');
                 indexWriter.commit();
@@ -142,6 +150,7 @@ final public class TrecCarLuceneIndexer {
                                       TrecCarParagraph trecCarParaRepr,
                                       IndexWriter indexWriter) throws IOException {
         final FileInputStream fileInputStream2 = new FileInputStream(paragraphCborFile);
+        final Set<String> seen = new TreeSet<String>();
 
         System.out.println("Creating paragraph index in "+indexPath);
         final Iterator<Data.Paragraph> paragraphIterator = DeserializeData.iterParagraphs(fileInputStream2);
@@ -149,7 +158,14 @@ final public class TrecCarLuceneIndexer {
         for (int i=1; paragraphIterator.hasNext(); i++){
             final Data.Paragraph paragraph = paragraphIterator.next();
             final Document doc = trecCarParaRepr.paragraphToLuceneDoc(paragraph);
-            indexWriter.addDocument(doc);
+               if (!seen.contains(paragraph.getParaId())) {
+                    // Check for duplicates
+                    // Only add paragraphs not yet added
+                    seen.add(paragraph.getParaId());
+
+                    indexWriter.addDocument(doc);
+               }
+
             if (i % 10000 == 0) {
                 System.out.print('.');
                 indexWriter.commit();

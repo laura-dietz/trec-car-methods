@@ -22,6 +22,11 @@ public class TrecCarAspect implements TrecCarPageRepr {
     }
 
     @Override
+    public TrecCarSearchField getWikiDataQIdField() {
+        return TrecCarSearchField.WikiDataQId;
+    }
+
+    @Override
     public TrecCarSearchField getTextField() {
         return TrecCarSearchField.Text;
     }
@@ -163,11 +168,13 @@ public class TrecCarAspect implements TrecCarPageRepr {
         doc.add(new StringField(getIdField().name(), id, Field.Store.YES));  // don't tokenize this!
 
         for(TrecCarSearchField field:repr.keySet()) {
-            doc.add(new TextField(field.name(), String.join("\n", repr.get(field)), Field.Store.YES));
+            if(field == getWikiDataQIdField()){
+                doc.add(new StringField(getWikiDataQIdField().name(), id, Field.Store.YES));  // don't tokenize this!
+            } else {
+                doc.add(new TextField(field.name(), String.join("\n", repr.get(field)), Field.Store.YES));
+            }
         }
         return doc;
     }
-
-
 
 }

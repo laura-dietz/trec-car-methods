@@ -11,8 +11,13 @@ public class ProjectMain {
     public static void main(@NotNull String[] args) {
         System.setProperty("file.encoding", "UTF-8");
 
+        if(args.length < 1){
+            System.out.println("Command line must start with mode: (index|query)");
+            System.exit(-1);
+        }
+
         if("--tool-version".equals(args[0])) {
-            System.out.println("11");
+            System.out.println("21");
             System.exit(0);
         }
 

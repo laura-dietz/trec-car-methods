@@ -15,11 +15,13 @@ import java.util.Map;
  */
 public interface TrecCarPageRepr extends TrecCarRepr {
 
+    TrecCarSearchField getWikiDataQIdField();
+
     @NotNull
     Map<String, HashMap<TrecCarSearchField, List<String>>> convertPage(Data.Page p);
 
     @NotNull
-    List<Document> pageToLuceneDoc(Data.Page paragraph);
+    List<Document> pageToLuceneDoc(Data.Page page);
 
     @Override
     default TrecCarSearchField[] getSearchFields() {
