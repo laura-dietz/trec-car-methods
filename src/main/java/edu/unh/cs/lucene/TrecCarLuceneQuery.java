@@ -1,6 +1,7 @@
 package edu.unh.cs.lucene;
 
 import edu.unh.cs.TrecCarRepr;
+import edu.unh.cs.lucene.TrecCarLuceneConfig.LuceneQueryConfig;
 import edu.unh.cs.treccar_v2.Data;
 import edu.unh.cs.treccar_v2.read_data.DeserializeData;
 import me.tongfei.progressbar.ProgressBar;
@@ -23,6 +24,7 @@ import java.io.*;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.Map.Entry;
 
 /*
  * User: dietz
@@ -53,7 +55,7 @@ public class TrecCarLuceneQuery {
 
         TrecCarLuceneConfig.LuceneIndexConfig indexConfig = TrecCarLuceneConfig.getLuceneIndexConfig(representation);
         TrecCarLuceneConfig.LuceneQueryConfig cfg = new TrecCarLuceneConfig.LuceneQueryConfig(indexConfig,
-                !("display".equals(output)), "section".equals(queryType));
+                !("display".equals(output)), "section".equals(queryType), "pageViaSection".equals(queryType));
 
         System.out.println("Index loaded from " + indexPath + "/" + cfg.getIndexConfig().getIndexName());
         IndexSearcher searcher = null;
@@ -115,7 +117,12 @@ public class TrecCarLuceneQuery {
             e.printStackTrace();
         }
         BufferedInputStream bufferedInputStream = null;
-        if(cfg.queryAsSection ) {
+        if(cfg.isQueryAsSection() ) {
+            //  #####################################
+            //            Query Section
+            //  #####################################
+
+
             try {
                 bufferedInputStream = new BufferedInputStream(new FileInputStream(queryCborFile));
             } catch (FileNotFoundException e) {
@@ -143,7 +150,60 @@ public class TrecCarLuceneQuery {
                 }
             }
         }
+        else if(cfg.isQueryPageViaSection()) {
+            //  #####################################
+            //            Query Page Via Section
+            //  #####################################
+
+            PrintStream debugStream = (!cfg.isOutputAsRun()?System.out:SYSTEM_NULL);
+            PrintWriter noopRunFile = null;
+
+            // compose single page query out of section-wise queries
+            try {
+                bufferedInputStream = new BufferedInputStream(new FileInputStream(queryCborFile));
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+            for (Data.Page page : DeserializeData.iterableAnnotations(bufferedInputStream)) {
+                final String pageQueryId = page.getPageId();
+                HashSet<String> alreadyQueried = new HashSet<>();
+                //System.out.println("\n\nPage: " + page.getPageId());
+                List<Collection<Entry<String, Float>>> runs = new ArrayList<>();
+
+
+                for (List<Data.Section> sectionPath : page.flatSectionPaths()) {
+                    System.out.println();
+                    System.out.println(Data.sectionPathId(page.getPageId(), sectionPath) + "   \t " + Data.sectionPathHeadings(sectionPath));
+
+                    final String queryStr = queryStringBuilder.buildSectionQueryStr(page, sectionPath);
+                    final String queryId = Data.sectionPathId(page.getPageId(), sectionPath);
+                    if(!alreadyQueried.contains(queryId)) {
+                        try {
+                            // todo collect ranking output from expandedRetrievalModels
+                            runs.add(expandedRetrievalModels(cfg, searcher, queryBuilder, noopRunFile, queryStr, queryId,
+                                    expansionModel, numResults, numRmExpansionDocs, numRmExpansionTerms, queryModel));
+                            System.out.println("Section Query Completed: " + page.getPageId());
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        alreadyQueried.add(queryId);
+                    }
+                }
+
+                try {
+                    writeMergedRankings(cfg, numResults, runs, pageQueryId, runFile, debugStream, queryModel );
+                    System.out.println("Page Query Completed: " + page.getPageId()+"\n");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
         else {
+            //  #####################################
+            //            Query Page
+            //  #####################################
+
+
             try {
                 bufferedInputStream = new BufferedInputStream(new FileInputStream(queryCborFile));
             } catch (FileNotFoundException e) {
@@ -165,14 +225,78 @@ public class TrecCarLuceneQuery {
                     alreadyQueried.add(queryId);
                 }
             }
-        }
+        } 
+
         System.out.println();
 
         System.out.println("Written to "+ runFileName);
         assert runFile != null;
         runFile.close();
-
     }
+
+    private void writeMergedRankings(LuceneQueryConfig cfg,
+                                     int numResults,
+                                     @NotNull List<Collection<Entry<String, Float>>> runs, 
+                                     String queryId,
+                                     PrintWriter runFile,
+                                    //  @NotNull ScoreDoc[] scoreDoc,
+                                     PrintStream debugStream,
+                                     String queryModel ) throws IOException {
+
+        Map<String, Float> accum = new HashMap<>();
+
+        // System.out.println("\n Empty accum");
+        for(Collection<Entry<String,Float>> run: runs){
+            for (Entry<String,Float> entry: run){
+                accum.compute(entry.getKey(), (t, oldV) ->
+                        (oldV==null)? entry.getValue() : (oldV + entry.getValue())
+                );
+            }
+
+            // // Debug accum
+            // for(Map.Entry<String,Float> entry : accum.entrySet()){
+            //     System.out.println( entry.getKey()+ "\t" + entry.getValue());
+            // }
+            // System.out.println("\n");
+        }
+        
+
+        ArrayList<Map.Entry<String, Float>> allAccum = new ArrayList<>(accum.entrySet());
+        allAccum.sort((kv1, kv2) -> {
+            return Float.compare(kv2.getValue(), kv1.getValue()); // sort descending by flipping
+        });
+
+        List<Map.Entry<String, Float>> expansionTerms = allAccum.subList(0, Math.min(numResults, allAccum.size()));
+        // System.out.println("");
+        // for (Map.Entry<String,Float> entry: expansionTerms){
+        //     System.out.println(entry.getKey() + "\t" + entry.getValue());
+        // }
+
+
+
+
+        HashSet<String> alreadyReturned = new HashSet<>();
+
+        int searchRank = 0; // increment first thing
+        for (Map.Entry<String,Float> entry: expansionTerms){
+            searchRank = searchRank+1;
+            final Float searchScore = entry.getValue();
+            final String docId = entry.getKey();
+
+            System.out.println(entry.getKey() + "\t" + entry.getValue());
+
+            if(!alreadyReturned.contains(docId)){
+                debugStream.println(docId + " (" + searchRank + "):  SCORE " + searchScore);
+                runFile.println(queryId + " Q0 " + docId + " " + searchRank + " " + searchScore + " Lucene-"+ queryModel );
+                }
+            alreadyReturned.add(docId);
+        }            
+    }
+
+
+
+    
+
 
     private final static PrintStream SYSTEM_NULL = new PrintStream(new OutputStream() {
         public void write(int b) {
@@ -319,7 +443,7 @@ public class TrecCarLuceneQuery {
         System.exit(-1);
     }
 
-    static void expandedRetrievalModels(@NotNull TrecCarLuceneConfig.LuceneQueryConfig cfg,
+    static Collection<Entry<String, Float>> expandedRetrievalModels(@NotNull TrecCarLuceneConfig.LuceneQueryConfig cfg,
                                         IndexSearcher searcher,
                                         MyQueryBuilder queryBuilder,
                                         PrintWriter runFile,
@@ -330,30 +454,37 @@ public class TrecCarLuceneQuery {
                                         int numRmExpansionDocs,
                                         int numRmExpansionTerms,
                                         String queryModel) throws IOException {
+        ScoreDoc[] run = null;
 
         PrintStream debugStream = (!cfg.isOutputAsRun()?System.out:SYSTEM_NULL);
         if ("ecm-psg".equals(expansionModel)) {
             final ScoreDoc[] scoreDocs = oneQuery(searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, numResults, queryModel);
-            ecmPsgRanking(searcher, queryId, queryBuilder, queryStr, runFile, scoreDocs, debugStream, numRmExpansionDocs, numRmExpansionTerms,  numResults, queryModel, false);
+            run =  ecmPsgRanking(searcher, queryId, queryBuilder, queryStr, runFile, scoreDocs, debugStream, numRmExpansionDocs, numRmExpansionTerms,  numResults, queryModel, false);
         } else if ("ecm-psg1".equals(expansionModel)) {
             final ScoreDoc[] scoreDocs = oneQuery(searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, numResults, queryModel);
-            ecmPsgRanking(searcher, queryId, queryBuilder, queryStr, runFile, scoreDocs, debugStream, numRmExpansionDocs, numRmExpansionTerms,  numResults, queryModel, true);
+            run = ecmPsgRanking(searcher, queryId, queryBuilder, queryStr, runFile, scoreDocs, debugStream, numRmExpansionDocs, numRmExpansionTerms,  numResults, queryModel, true);
         } else if ("ecm-rm".equals(expansionModel)){
             final ScoreDoc[] scoreDocs = oneExpandedQuery(searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, queryBuilder.trecCarRepr.getTextField().name(), queryModel, numRmExpansionDocs, numResults, numRmExpansionTerms, false );
-            ecmRanking(searcher, queryId, runFile, scoreDocs, debugStream, numResults, numRmExpansionDocs,  queryModel);
+            return ecmRanking(searcher, queryId, runFile, scoreDocs, debugStream, numResults, numRmExpansionDocs,  queryModel);
         } else if ("ecm".equals(expansionModel)) {
             final ScoreDoc[] scoreDocs = oneQuery(searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, numResults, queryModel);
-            ecmRanking(searcher, queryId, runFile, scoreDocs, debugStream, numResults, numRmExpansionDocs, queryModel);
+            return ecmRanking(searcher, queryId, runFile, scoreDocs, debugStream, numResults, numRmExpansionDocs, queryModel);
         } else if ("rm".equals(expansionModel)){
-            oneExpandedQuery(searcher, queryBuilder, queryStr, queryId, runFile, debugStream, queryBuilder.trecCarRepr.getTextField().name(), queryModel, numRmExpansionDocs, numResults, numRmExpansionTerms, false);
+            run =  oneExpandedQuery(searcher, queryBuilder, queryStr, queryId, runFile, debugStream, queryBuilder.trecCarRepr.getTextField().name(), queryModel, numRmExpansionDocs, numResults, numRmExpansionTerms, false);
         } else if ("rm1".equals(expansionModel)){
-            oneExpandedQuery(searcher, queryBuilder, queryStr, queryId, runFile, debugStream, queryBuilder.trecCarRepr.getTextField().name(), queryModel, numRmExpansionDocs, numResults, numRmExpansionTerms, true);
+            run =  oneExpandedQuery(searcher, queryBuilder, queryStr, queryId, runFile, debugStream, queryBuilder.trecCarRepr.getTextField().name(), queryModel, numRmExpansionDocs, numResults, numRmExpansionTerms, true);
         } else if ("none".equals(expansionModel)){
-            oneQuery(searcher, queryBuilder, queryStr, queryId, runFile, debugStream, numResults, queryModel);
+            run =  oneQuery(searcher, queryBuilder, queryStr, queryId, runFile, debugStream, numResults, queryModel);
         } else {
             System.out.println("Warning: expansion model "+ expansionModel +" not known.");
-            oneQuery(searcher, queryBuilder, queryStr, queryId, runFile, debugStream, numResults, queryModel);
+            run =  oneQuery(searcher, queryBuilder, queryStr, queryId, runFile, debugStream, numResults, queryModel);
         }
+
+        Map<String, Float> clonedRun;
+
+        clonedRun = accumulateEntries(numResults, run, docInt -> getDocId(searcher, docInt), new HashMap<>());
+
+        return clonedRun.entrySet();
     }
 
 
@@ -420,45 +551,8 @@ public class TrecCarLuceneQuery {
     private static List<Map.Entry<String, Float>> marginalizeFreq(int takeKDocs,
                                                                   int takeKTerms,
                                                                   @NotNull ScoreDoc[] scoreDocAll,
-                                                                  FetchEntries fetchEntries,
-                                                                  Map<String, Float> wordFreq ) throws IOException {
-    //private static List<Map.Entry<String, Float>> marginalizeFreqs(int takeKDocs, int takeKTerms, ScoreDoc[] scoreDocAll, FetchEntries fetchEntries, Map<String, Float> wordFreqs ) throws IOException {
-        // only analyze the first takeKDocs of ranking
-        ScoreDoc[] scoreDoc = Arrays.copyOfRange(scoreDocAll, 0, takeKDocs);
-        // guess if we have log scores...
-        boolean useLog = false;
-        for (ScoreDoc score : scoreDoc) {
-            if (score == null) {
-                continue;
-            }
-            if (score.score < 0.0) {
-                useLog = true;
-                break;
-            }
-        }
-
-        // compute score normalizer
-        double normalizer = 0.0;
-        for (ScoreDoc score : scoreDoc) {
-            if (score == null) {
-                continue;
-            }
-            if (useLog) normalizer += Math.exp(score.score);
-            else normalizer += score.score;
-        }
-        if (useLog) normalizer = Math.log(normalizer);
-
-        for (ScoreDoc score : scoreDoc) {
-            if (score == null) {
-                continue;
-            }
-            Double weight = useLog ? (score.score - normalizer) : (score.score / normalizer);
-            for ( String entry: fetchEntries.entries(score.doc) ) {
-                wordFreq.compute(entry, (t, oldV) ->
-                        (oldV==null)? weight.floatValue() : (oldV + weight.floatValue())
-                );
-            }
-        }
+                                                                  FetchEntries fetchEntries) throws IOException {
+        Map<String, Float> wordFreq = accumulateEntries(takeKDocs, scoreDocAll, fetchEntries, new HashMap<>());
 
         ArrayList<Map.Entry<String, Float>> allWordFreq = new ArrayList<>(wordFreq.entrySet());
         allWordFreq.sort((kv1, kv2) -> {
@@ -466,7 +560,55 @@ public class TrecCarLuceneQuery {
         });
 
         List<Map.Entry<String, Float>> expansionTerms = allWordFreq.subList(0, Math.min(takeKTerms, allWordFreq.size()));
+        System.out.println("");
+        for (Map.Entry<String,Float> term: expansionTerms){
+            System.out.println(term.getKey() + "\t" + term.getValue());
+        }
         return expansionTerms;
+    }
+
+    private static Map<String, Float> accumulateEntries(int takeKDocs, ScoreDoc[] scoreDocAll, FetchEntries fetchEntries,  Map<String, Float> wordFreq) throws IOException {
+
+        
+        //private static List<Map.Entry<String, Float>> marginalizeFreqs(int takeKDocs, int takeKTerms, ScoreDoc[] scoreDocAll, FetchEntries fetchEntries, Map<String, Float> wordFreqs ) throws IOException {
+            // only analyze the first takeKDocs of ranking
+            ScoreDoc[] scoreDoc = Arrays.copyOfRange(scoreDocAll, 0, takeKDocs);
+            // guess if we have log scores...
+            boolean useLog = false;
+            for (ScoreDoc score : scoreDoc) {
+                if (score == null) {
+                    continue;
+                }
+                if (score.score < 0.0) {
+                    useLog = true;
+                    break;
+                }
+            }
+
+            // compute score normalizer
+            double normalizer = 0.0;
+            for (ScoreDoc score : scoreDoc) {
+                if (score == null) {
+                    continue;
+                }
+                if (useLog) normalizer += Math.exp(score.score);
+                else normalizer += score.score;
+            }
+            if (useLog) normalizer = Math.log(normalizer);
+
+            for (ScoreDoc score : scoreDoc) {
+                if (score == null) {
+                    continue;
+                }
+                Double weight = useLog ? (score.score - normalizer) : (score.score / normalizer);
+                for ( String entry: fetchEntries.entries(score.doc) ) {
+                    wordFreq.compute(entry, (t, oldV) ->
+                            (oldV==null)? weight.floatValue() : (oldV + weight.floatValue())
+                    );
+                }
+            }
+
+            return wordFreq;
     }
 
 
@@ -518,7 +660,7 @@ public class TrecCarLuceneQuery {
         return tops.scoreDocs;
     }
 
-    private static void ecmRanking(IndexSearcher searcher,
+    private static List<Entry<String, Float>> ecmRanking(IndexSearcher searcher,
                                    String queryId,
                                    PrintWriter runFile,
                                    ScoreDoc[] scoreDoc,
@@ -526,14 +668,12 @@ public class TrecCarLuceneQuery {
                                    int numResults,
                                    int takeKDocs,
                                    String queryModel) throws IOException {
-        Map<String, Float> entityFreq = new HashMap<>();
+
+        List<Map.Entry<String, Float>> expansionEntities = marginalizeFreq(takeKDocs,
+                numResults, scoreDoc, docInt -> getEntityIds(searcher, docInt) );
 
         if(runFile!=null){
-            List<Map.Entry<String, Float>> expansionEntities = marginalizeFreq(takeKDocs,
-                    numResults, scoreDoc, docInt -> getStrings(searcher, docInt), entityFreq
-            );
-
-            HashSet<String> alreadyReturned = new HashSet<>();
+                HashSet<String> alreadyReturned = new HashSet<>();
             int rank = 1;
             for (Map.Entry<String, Float> expansionEntity : expansionEntities) {
 
@@ -549,12 +689,22 @@ public class TrecCarLuceneQuery {
 
                 rank ++;
             }
-
         }
+
+        return expansionEntities;
     }
 
+
     @NotNull
-    private static Iterable<String> getStrings(@NotNull IndexSearcher searcher, Integer docInt) throws IOException {
+    private static Iterable<String> getDocId(@NotNull IndexSearcher searcher, Integer docInt) throws IOException {
+        final Document doc = searcher.doc(docInt); // to access stored content
+        String docId = doc.getField(TrecCarRepr.TrecCarSearchField.Id.name()).stringValue();
+        return Collections.singletonList(docId);
+    }
+
+
+    @NotNull
+    private static Iterable<String> getEntityIds(@NotNull IndexSearcher searcher, Integer docInt) throws IOException {
         final Document doc = searcher.doc(docInt); // to access stored content
         final IndexableField outLinks = doc.getField(TrecCarRepr.TrecCarSearchField.OutlinkIds.name());
         final IndexableField inLinks = doc.getField(TrecCarRepr.TrecCarSearchField.InlinkIds.name());
@@ -572,7 +722,7 @@ public class TrecCarLuceneQuery {
         return result;
     }
 
-    private static void ecmPsgRanking(IndexSearcher searcher,
+    private static ScoreDoc[] ecmPsgRanking(IndexSearcher searcher,
                                       String queryId,
                                       MyQueryBuilder queryBuilder,
                                       String queryStr,
@@ -584,10 +734,9 @@ public class TrecCarLuceneQuery {
                                       int numResults,
                                       String queryModel,
                                       boolean omitQueryTerms ) throws IOException {
-        Map<String, Float> entityFreq = new HashMap<>();
+        // Map<String, Float> entityFreq = new HashMap<>();
 
-        if(runFile!=null){
-            List<Map.Entry<String, Float>> expansionEntities = marginalizeFreq(takeKDocs, takeKTerms, scoreDoc, docInt -> getStrings(searcher, docInt), entityFreq
+            List<Map.Entry<String, Float>> expansionEntities = marginalizeFreq(takeKDocs, takeKTerms, scoreDoc, docInt -> getEntityIds(searcher, docInt)
             );
 
 
@@ -599,37 +748,42 @@ public class TrecCarLuceneQuery {
             ScoreDoc[] scoreDoc2 = tops.scoreDocs;
 
 
-            outputQueryResults(searcher, queryId, runFile, trecCarRepr, scoreDoc2, debugStream, queryModel);
-
-        }
+            if(runFile!=null){
+                outputQueryResults(searcher, queryId, runFile, trecCarRepr, scoreDoc2, debugStream, queryModel);
+            }
+            return tops.scoreDocs;
+        
     }
 
-    private static void outputQueryResults(IndexSearcher searcher,
-                                           String queryId,
+    private static void outputQueryResults(@NotNull IndexSearcher searcher,
+                                           @NotNull String queryId,
                                            PrintWriter runFile,
-                                           TrecCarRepr trecCarRepr,
+                                           @NotNull TrecCarRepr trecCarRepr,
                                            @NotNull ScoreDoc[] scoreDoc,
                                            PrintStream debugStream,
-                                           String queryModel) throws IOException {
+                                           @NotNull String queryModel) throws IOException 
+    {
+        if (runFile != null){
 
-        HashSet<String> alreadyReturned = new HashSet<>();
-        for (int i = 0; i < scoreDoc.length; i++) {
-            ScoreDoc score = scoreDoc[i];
-            final Document doc = searcher.doc(score.doc); // to access stored content
-            // print score and internal docid
-            final String docId = doc.getField(trecCarRepr.getIdField().name()).stringValue();
-            final float searchScore = score.score;
-            final int searchRank = i+1;
+            HashSet<String> alreadyReturned = new HashSet<>();
+            for (int i = 0; i < scoreDoc.length; i++) {
+                ScoreDoc score = scoreDoc[i];
+                final Document doc = searcher.doc(score.doc); // to access stored content
+                // print score and internal docid
+                final String docId = doc.getField(trecCarRepr.getIdField().name()).stringValue();
+                final float searchScore = score.score;
+                final int searchRank = i+1;
 
 
-            if(!alreadyReturned.contains(docId)){
-                debugStream.println(docId + " (" + searchRank + "):  SCORE " + score.score);
-                debugStream.println("  " + doc.getField(trecCarRepr.getTextField().name()).stringValue());
-                debugStream.println("  " + doc.getField(trecCarRepr.getEntityField().name()).stringValue());
-                //debugStream.println("  " + doc.getField(trecCarRepr.getEntityField().name()).stringValue());
-                runFile.println(queryId + " Q0 " + docId + " " + searchRank + " " + searchScore + " Lucene-"+ queryModel );
+                if(!alreadyReturned.contains(docId)){
+                    debugStream.println(docId + " (" + searchRank + "):  SCORE " + score.score);
+                    debugStream.println("  " + doc.getField(trecCarRepr.getTextField().name()).stringValue());
+                    debugStream.println("  " + doc.getField(trecCarRepr.getEntityField().name()).stringValue());
+                    //debugStream.println("  " + doc.getField(trecCarRepr.getEntityField().name()).stringValue());
+                    runFile.println(queryId + " Q0 " + docId + " " + searchRank + " " + searchScore + " Lucene-"+ queryModel );
+                }
+                alreadyReturned.add(docId);
             }
-            alreadyReturned.add(docId);
         }
     }
 

@@ -28,6 +28,9 @@ public class TrecCarLuceneConfig {
             case "ecm":
                 cfg = ecmConfig();
                 break;
+            case "ecmentity":
+                cfg = ecmEntityConfig();
+                break;
             case "aspect":
                 cfg = aspectConfig();
                 break;
@@ -130,6 +133,17 @@ public class TrecCarLuceneConfig {
     }
 
     @NotNull
+    public static LuceneIndexConfig ecmEntityConfig() {
+        final LuceneIndexConfig config = new LuceneIndexConfig();
+        config.indexName = "ecmentity.lucene";
+        config.trecCarRepr = new TrecCarEcmEntity();
+        config.isPageConfig = true;
+        config.emitsList = true;
+        config.setSearchFields(config.getDefaultSearchFields());
+        return config;
+    }
+
+    @NotNull
     public static LuceneIndexConfig aspectConfig() {
         final LuceneIndexConfig config = new LuceneIndexConfig();
         config.indexName = "aspect.lucene";
@@ -156,12 +170,14 @@ public class TrecCarLuceneConfig {
         LuceneIndexConfig indexConfig;
         boolean outputAsRun;
         boolean queryAsSection;
+        boolean queryPageViaSection;
 
 
-        public LuceneQueryConfig(LuceneIndexConfig indexConfig, boolean outputAsRun, boolean queryAsSection) {
+        public LuceneQueryConfig(LuceneIndexConfig indexConfig, boolean outputAsRun, boolean queryAsSection, boolean queryPageViaSection) {
             this.indexConfig = indexConfig;
             this.outputAsRun = outputAsRun;
             this.queryAsSection = queryAsSection;
+            this.queryPageViaSection = queryPageViaSection;
         }
 
         public LuceneIndexConfig getIndexConfig() {
@@ -171,6 +187,16 @@ public class TrecCarLuceneConfig {
         public boolean isOutputAsRun() {
             return outputAsRun;
         }
+
+        public boolean isQueryAsSection() {
+            return queryAsSection;
+        }
+
+        public boolean isQueryPageViaSection() {
+            return queryPageViaSection;
+        }
+
+        
     }
 
 
