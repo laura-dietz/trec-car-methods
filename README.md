@@ -33,7 +33,7 @@ Where:
 This is designed to work with a previousy created index (`INDEX`) and TREC CAR queries which come in the form of page outlines with title, headings, and subheadings
 
 Call Main Class with argument:
-`query (paragraph|page|entity|ecm|aspect)  (section|page) (run|display) OutlineCBOR INDEX RUNFile (sectionPath|all|subtree|title|leafHeading|interior) (bm25|ql|default) (none|rm|ecm|ecm-rm|ecm-psg|rm1|ecm-psg1) (std|english) numResults numRmExpansionDocs numRmExpansionTerms [searchField1] [searchField2] ...
+`query (paragraph|page|entity|ecm|aspect)  (section|page|pageViaSection) (run|display) OutlineCBOR INDEX RUNFile (sectionPath|all|subtree|title|leafHeading|interior) (bm25|ql|default) (none|rm|ecm|ecm-rm|ecm-psg|rm1|ecm-psg1) (std|english) numResults numRmExpansionDocs (killQueryEntities|none) numRmExpansionTerms [searchField1] [searchField2] ...
 searchFields one of [Id,  Text, Headings, Title, AnchorNames, DisambiguationNames, CategoryNames, InlinkIds, OutlinkIds, EntityLinks, Entity, LeadText, WikiDataQId]`
 
 
@@ -43,11 +43,12 @@ Where:
 
 * "query" is a keyword that activates the query mode
 * (paragraph|page|entity|ecm|aspect) selects the index type used (see indexing above)
-*  (section|page) selects the query mode with
+*  (section|page|pageViaSection) selects the query mode with
     * "section":  create a ranking for every section (i.e., section path) in the query outline
     * "page": create a single ranking for every query outline
+    * "pageViaSection": will produce a ranking per section, then merge rankings (via RM3 normalized rank scores). It is recommended to use a section-level query model.
 * (run|display) selects the output either
-    * "run" create rankings for all queries in batch model, using the TREC EVAL Run file format (depending on the index and retrievalmodel these are paragraph ids or entity ids )
+    * "run" create rankings for all queries in batch model, using the TREC EVAL Run file format (depending on the index and retrieval model these are paragraph ids or entity ids )
     * "display" display the contents of retrieved elements (with additional info on the query model)
 * `OutlineCBOR`: path to the query outline file in CBOR format
 * `INDEX`: path to the search index directory (see indexing above)
@@ -75,5 +76,8 @@ Where:
 * `numResults`: number of total entries per ranking
 * `numRmExpansionDocs`: number of documents used for query expansion (rm and ecm-psg) 
 * `numRmExpansionTerms`: number of expansion terms (for rm and rm1 and ecm-rm) or expansion entities (for ecm-psg and ecm-psg1)
+* (killQueryEntities|none): selects one of
+    * none: no effect
+    * killQueryEntities: will ignore entityIds when they are the same as the queryId during entity expansion, entity ranking, and when producing ranking outputs.  -- this is necessary when using entity ranking with TREC CAR's allButBenchmark corpus, where ground truth can be leaked by matching the query id against all inlinks. Activating this option will avoid the leakage.
 * Searchfield ... : a list of indexed fields that will be used during full text search (e.g. "Text"). Entities will automatically be searched in the entity field, not the full text.
 
