@@ -4,7 +4,6 @@ import edu.unh.cs.TrecCarRepr;
 import edu.unh.cs.lucene.TrecCarLuceneConfig.LuceneQueryConfig;
 import edu.unh.cs.treccar_v2.Data;
 import edu.unh.cs.treccar_v2.read_data.DeserializeData;
-import me.tongfei.progressbar.ProgressBar;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
@@ -38,6 +37,24 @@ import java.util.Map.Entry;
  */
 public class TrecCarLuceneQuery {
 
+
+    public static void usage() {
+        System.out.println("Command line parameters: query (paragraph|page|entity|ecm|aspect) " +
+                " (section|page|pageViaSection) (run|display) OutlineCBOR INDEX RUNFile" +
+                " (sectionPath|all|subtree|title|leafHeading|interior)" +
+                " (bm25|ql|default) (none|rm|ecm|ecm-rm|ecm-psg|rm1|ecm-psg1) (std|english) numResults " +
+                "numRmExpansionDocs numRmExpansionTerms (killQueryEntities|none) [searchField1] [searchField2] ...\n" +
+                "searchFields one of "+Arrays.toString(TrecCarRepr.TrecCarSearchField.values()));
+        System.exit(-1);
+    }
+
+    private boolean parseKillQueryEntitiesArgument(String inputString) throws RuntimeException {
+        if(inputString.equalsIgnoreCase("none")) return false;
+        else if(inputString.equalsIgnoreCase("no")) return false;
+        else if(inputString.startsWith("kill")) return true;
+        else throw new RuntimeException("argument must either be killQueryEntities or none, but is \'"+inputString+"\'");
+    }
+
     public TrecCarLuceneQuery(String representation,
                               String queryType,
                               String output,
@@ -51,11 +68,13 @@ public class TrecCarLuceneQuery {
                               int numResults,
                               int numRmExpansionDocs,
                               int numRmExpansionTerms,
+                              String killQueryEntityIds,
                               List<String> searchFields) {
 
         TrecCarLuceneConfig.LuceneIndexConfig indexConfig = TrecCarLuceneConfig.getLuceneIndexConfig(representation);
         TrecCarLuceneConfig.LuceneQueryConfig cfg = new TrecCarLuceneConfig.LuceneQueryConfig(indexConfig,
-                !("display".equals(output)), "section".equals(queryType), "pageViaSection".equals(queryType));
+                !("display".equals(output)), "section".equals(queryType), "pageViaSection".equals(queryType), 
+                parseKillQueryEntitiesArgument(killQueryEntityIds));
 
         System.out.println("Index loaded from " + indexPath + "/" + cfg.getIndexConfig().getIndexName());
         IndexSearcher searcher = null;
@@ -433,16 +452,6 @@ public class TrecCarLuceneQuery {
 
     }
 
-    public static void usage() {
-        System.out.println("Command line parameters: query (paragraph|page|entity|ecm|aspect) " +
-                " (section|page) (run|display) OutlineCBOR INDEX RUNFile" +
-                " (sectionPath|all|subtree|title|leafHeading|interior)" +
-                " (bm25|ql|default) (none|rm|ecm|ecm-rm|ecm-psg|rm1|ecm-psg1) (std|english) numResults " +
-                "numRmExpansionDocs numRmExpansionTerms [searchField1] [searchField2] ...\n" +
-                "searchFields one of "+Arrays.toString(TrecCarRepr.TrecCarSearchField.values()));
-        System.exit(-1);
-    }
-
     static Collection<Entry<String, Float>> expandedRetrievalModels(@NotNull TrecCarLuceneConfig.LuceneQueryConfig cfg,
                                         IndexSearcher searcher,
                                         MyQueryBuilder queryBuilder,
@@ -458,26 +467,26 @@ public class TrecCarLuceneQuery {
 
         PrintStream debugStream = (!cfg.isOutputAsRun()?System.out:SYSTEM_NULL);
         if ("ecm-psg".equals(expansionModel)) {
-            final ScoreDoc[] scoreDocs = oneQuery(searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, numResults, queryModel);
-            run =  ecmPsgRanking(searcher, queryId, queryBuilder, queryStr, runFile, scoreDocs, debugStream, numRmExpansionDocs, numRmExpansionTerms,  numResults, queryModel, false);
+            final ScoreDoc[] scoreDocs = oneQuery(cfg, searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, numResults, queryModel);
+            run =  ecmPsgRanking(cfg, searcher, queryId, queryBuilder, queryStr, runFile, scoreDocs, debugStream, numRmExpansionDocs, numRmExpansionTerms,  numResults, queryModel, false);
         } else if ("ecm-psg1".equals(expansionModel)) {
-            final ScoreDoc[] scoreDocs = oneQuery(searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, numResults, queryModel);
-            run = ecmPsgRanking(searcher, queryId, queryBuilder, queryStr, runFile, scoreDocs, debugStream, numRmExpansionDocs, numRmExpansionTerms,  numResults, queryModel, true);
+            final ScoreDoc[] scoreDocs = oneQuery(cfg, searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, numResults, queryModel);
+            run = ecmPsgRanking(cfg, searcher, queryId, queryBuilder, queryStr, runFile, scoreDocs, debugStream, numRmExpansionDocs, numRmExpansionTerms,  numResults, queryModel, true);
         } else if ("ecm-rm".equals(expansionModel)){
-            final ScoreDoc[] scoreDocs = oneExpandedQuery(searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, queryBuilder.trecCarRepr.getTextField().name(), queryModel, numRmExpansionDocs, numResults, numRmExpansionTerms, false );
-            return ecmRanking(searcher, queryId, runFile, scoreDocs, debugStream, numResults, numRmExpansionDocs,  queryModel);
+            final ScoreDoc[] scoreDocs = oneExpandedQuery(cfg, searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, queryBuilder.trecCarRepr.getTextField().name(), queryModel, numRmExpansionDocs, numResults, numRmExpansionTerms, false );
+            return ecmRanking(cfg, searcher, queryId, runFile, scoreDocs, debugStream, numResults, numRmExpansionDocs,  queryModel);
         } else if ("ecm".equals(expansionModel)) {
-            final ScoreDoc[] scoreDocs = oneQuery(searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, numResults, queryModel);
-            return ecmRanking(searcher, queryId, runFile, scoreDocs, debugStream, numResults, numRmExpansionDocs, queryModel);
+            final ScoreDoc[] scoreDocs = oneQuery(cfg, searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, numResults, queryModel);
+            return ecmRanking(cfg, searcher, queryId, runFile, scoreDocs, debugStream, numResults, numRmExpansionDocs, queryModel);
         } else if ("rm".equals(expansionModel)){
-            run =  oneExpandedQuery(searcher, queryBuilder, queryStr, queryId, runFile, debugStream, queryBuilder.trecCarRepr.getTextField().name(), queryModel, numRmExpansionDocs, numResults, numRmExpansionTerms, false);
+            run =  oneExpandedQuery(cfg, searcher, queryBuilder, queryStr, queryId, runFile, debugStream, queryBuilder.trecCarRepr.getTextField().name(), queryModel, numRmExpansionDocs, numResults, numRmExpansionTerms, false);
         } else if ("rm1".equals(expansionModel)){
-            run =  oneExpandedQuery(searcher, queryBuilder, queryStr, queryId, runFile, debugStream, queryBuilder.trecCarRepr.getTextField().name(), queryModel, numRmExpansionDocs, numResults, numRmExpansionTerms, true);
+            run =  oneExpandedQuery(cfg, searcher, queryBuilder, queryStr, queryId, runFile, debugStream, queryBuilder.trecCarRepr.getTextField().name(), queryModel, numRmExpansionDocs, numResults, numRmExpansionTerms, true);
         } else if ("none".equals(expansionModel)){
-            run =  oneQuery(searcher, queryBuilder, queryStr, queryId, runFile, debugStream, numResults, queryModel);
+            run =  oneQuery(cfg, searcher, queryBuilder, queryStr, queryId, runFile, debugStream, numResults, queryModel);
         } else {
             System.out.println("Warning: expansion model "+ expansionModel +" not known.");
-            run =  oneQuery(searcher, queryBuilder, queryStr, queryId, runFile, debugStream, numResults, queryModel);
+            run =  oneQuery(cfg, searcher, queryBuilder, queryStr, queryId, runFile, debugStream, numResults, queryModel);
         }
 
         Map<String, Float> clonedRun;
@@ -614,7 +623,8 @@ public class TrecCarLuceneQuery {
 
 
     @NotNull
-    private static ScoreDoc[] oneExpandedQuery(IndexSearcher searcher,
+    private static ScoreDoc[] oneExpandedQuery(@NotNull TrecCarLuceneConfig.LuceneQueryConfig cfg,
+                                               IndexSearcher searcher,
                                                @NotNull MyQueryBuilder queryBuilder,
                                                String queryStr,
                                                String queryId,
@@ -636,11 +646,12 @@ public class TrecCarLuceneQuery {
         ScoreDoc[] scoreDoc = tops.scoreDocs;
 
 
-        outputQueryResults(searcher, queryId, runFile, trecCarRepr, scoreDoc, debugStream, queryModel);
+        outputQueryResults(cfg, searcher, queryId, runFile, trecCarRepr, scoreDoc, debugStream, queryModel);
         return scoreDoc;
     }
 
-    private static ScoreDoc[] oneQuery(@NotNull IndexSearcher searcher,
+    private static ScoreDoc[] oneQuery(@NotNull TrecCarLuceneConfig.LuceneQueryConfig cfg,
+                                       @NotNull IndexSearcher searcher,
                                        @NotNull MyQueryBuilder queryBuilder,
                                        String queryStr,
                                        String queryId,
@@ -655,12 +666,13 @@ public class TrecCarLuceneQuery {
         ScoreDoc[] scoreDoc = tops.scoreDocs;
 
 
-        outputQueryResults(searcher, queryId, runFile, trecCarRepr, scoreDoc, debugStream, queryModel);
+        outputQueryResults(cfg, searcher, queryId, runFile, trecCarRepr, scoreDoc, debugStream, queryModel);
 
         return tops.scoreDocs;
     }
 
-    private static List<Entry<String, Float>> ecmRanking(IndexSearcher searcher,
+    private static List<Entry<String, Float>> ecmRanking(@NotNull TrecCarLuceneConfig.LuceneQueryConfig cfg,
+                                   IndexSearcher searcher,
                                    String queryId,
                                    PrintWriter runFile,
                                    ScoreDoc[] scoreDoc,
@@ -670,10 +682,11 @@ public class TrecCarLuceneQuery {
                                    String queryModel) throws IOException {
 
         List<Map.Entry<String, Float>> expansionEntities = marginalizeFreq(takeKDocs,
-                numResults, scoreDoc, docInt -> getEntityIds(searcher, docInt) );
+                numResults, scoreDoc, docInt -> getEntityIds(cfg, searcher, docInt, queryId) );
 
         if(runFile!=null){
-                HashSet<String> alreadyReturned = new HashSet<>();
+            HashSet<String> alreadyReturned = new HashSet<>();
+            if(cfg.isKillQueryEntityIds()) alreadyReturned.add(queryId); // never output the query id
             int rank = 1;
             for (Map.Entry<String, Float> expansionEntity : expansionEntities) {
 
@@ -683,11 +696,11 @@ public class TrecCarLuceneQuery {
                 if(!alreadyReturned.contains(entityId)) {
                     debugStream.println(entityId + " (" + rank + "):  SCORE " + score);
                     runFile.println(queryId + " Q0 " + entityId + " " + rank + " " + score + " Lucene-ECM-" + queryModel );
+                    rank ++;
                 }
 
                 alreadyReturned.add(entityId);
 
-                rank ++;
             }
         }
 
@@ -704,7 +717,8 @@ public class TrecCarLuceneQuery {
 
 
     @NotNull
-    private static Iterable<String> getEntityIds(@NotNull IndexSearcher searcher, Integer docInt) throws IOException {
+    private static Iterable<String> getEntityIds(@NotNull TrecCarLuceneConfig.LuceneQueryConfig cfg,
+                                                 @NotNull IndexSearcher searcher, Integer docInt, String queryId) throws IOException {
         final Document doc = searcher.doc(docInt); // to access stored content
         final IndexableField outLinks = doc.getField(TrecCarRepr.TrecCarSearchField.OutlinkIds.name());
         final IndexableField inLinks = doc.getField(TrecCarRepr.TrecCarSearchField.InlinkIds.name());
@@ -712,17 +726,22 @@ public class TrecCarLuceneQuery {
         ArrayList<String> result = new ArrayList<>();
         if(outLinks!=null ) {
             final String[] outLinkIds = outLinks.stringValue().split("\n");
-            result.addAll(Arrays.asList(outLinkIds));
+            List<String> outlinks = Arrays.asList(outLinkIds);
+            if(cfg.isKillQueryEntityIds()) outlinks.remove(queryId);
+            result.addAll(outlinks);
         } else if(inLinks != null) {
             final String[] inLinkIds = inLinks.stringValue().split("\n");
-            result.addAll(Arrays.asList(inLinkIds));
+            List<String> inlinks = Arrays.asList(inLinkIds);
+            if(cfg.isKillQueryEntityIds())  inlinks.remove(queryId);
+            result.addAll(inlinks);
         }
 
         result.removeIf(String::isEmpty);
         return result;
     }
 
-    private static ScoreDoc[] ecmPsgRanking(IndexSearcher searcher,
+    private static ScoreDoc[] ecmPsgRanking(@NotNull TrecCarLuceneConfig.LuceneQueryConfig cfg,
+                                      IndexSearcher searcher,
                                       String queryId,
                                       MyQueryBuilder queryBuilder,
                                       String queryStr,
@@ -736,7 +755,8 @@ public class TrecCarLuceneQuery {
                                       boolean omitQueryTerms ) throws IOException {
         // Map<String, Float> entityFreq = new HashMap<>();
 
-            List<Map.Entry<String, Float>> expansionEntities = marginalizeFreq(takeKDocs, takeKTerms, scoreDoc, docInt -> getEntityIds(searcher, docInt)
+            List<Map.Entry<String, Float>> expansionEntities = marginalizeFreq(takeKDocs, takeKTerms, scoreDoc, 
+                                                                               docInt -> getEntityIds(cfg, searcher, docInt, queryId)
             );
 
 
@@ -749,13 +769,14 @@ public class TrecCarLuceneQuery {
 
 
             if(runFile!=null){
-                outputQueryResults(searcher, queryId, runFile, trecCarRepr, scoreDoc2, debugStream, queryModel);
+                outputQueryResults(cfg, searcher, queryId, runFile, trecCarRepr, scoreDoc2, debugStream, queryModel);
             }
             return tops.scoreDocs;
         
     }
 
-    private static void outputQueryResults(@NotNull IndexSearcher searcher,
+    private static void outputQueryResults(@NotNull TrecCarLuceneConfig.LuceneQueryConfig cfg,
+                                           @NotNull IndexSearcher searcher,
                                            @NotNull String queryId,
                                            PrintWriter runFile,
                                            @NotNull TrecCarRepr trecCarRepr,
@@ -766,6 +787,7 @@ public class TrecCarLuceneQuery {
         if (runFile != null){
 
             HashSet<String> alreadyReturned = new HashSet<>();
+            if(cfg.isKillQueryEntityIds()) alreadyReturned.add(queryId); 
             for (int i = 0; i < scoreDoc.length; i++) {
                 ScoreDoc score = scoreDoc[i];
                 final Document doc = searcher.doc(score.doc); // to access stored content
