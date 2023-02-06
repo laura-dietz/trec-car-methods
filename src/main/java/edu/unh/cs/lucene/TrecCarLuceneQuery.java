@@ -686,7 +686,8 @@ public class TrecCarLuceneQuery {
 
         if(runFile!=null){
             HashSet<String> alreadyReturned = new HashSet<>();
-            if(cfg.isKillQueryEntityIds()) alreadyReturned.add(queryId); // never output the query id
+            if(cfg.isKillQueryEntityIds()) 
+                alreadyReturned.add(queryId); // never output the query id
             int rank = 1;
             for (Map.Entry<String, Float> expansionEntity : expansionEntities) {
 
@@ -726,13 +727,17 @@ public class TrecCarLuceneQuery {
         ArrayList<String> result = new ArrayList<>();
         if(outLinks!=null ) {
             final String[] outLinkIds = outLinks.stringValue().split("\n");
-            List<String> outlinks = Arrays.asList(outLinkIds);
-            if(cfg.isKillQueryEntityIds()) outlinks.remove(queryId);
+            List<String> outlinks = new ArrayList();
+            outlinks.addAll(Arrays.asList(outLinkIds));
+            if(cfg.isKillQueryEntityIds()) 
+                outlinks.remove(queryId);
             result.addAll(outlinks);
         } else if(inLinks != null) {
             final String[] inLinkIds = inLinks.stringValue().split("\n");
-            List<String> inlinks = Arrays.asList(inLinkIds);
-            if(cfg.isKillQueryEntityIds())  inlinks.remove(queryId);
+            List<String> inlinks = new ArrayList<>();
+            inlinks.addAll(Arrays.asList(inLinkIds));
+            if(cfg.isKillQueryEntityIds())  
+                inlinks.remove(queryId);
             result.addAll(inlinks);
         }
 
@@ -787,7 +792,8 @@ public class TrecCarLuceneQuery {
         if (runFile != null){
 
             HashSet<String> alreadyReturned = new HashSet<>();
-            if(cfg.isKillQueryEntityIds()) alreadyReturned.add(queryId); 
+            if(cfg.isKillQueryEntityIds()) 
+                alreadyReturned.add(queryId); 
             for (int i = 0; i < scoreDoc.length; i++) {
                 ScoreDoc score = scoreDoc[i];
                 final Document doc = searcher.doc(score.doc); // to access stored content
