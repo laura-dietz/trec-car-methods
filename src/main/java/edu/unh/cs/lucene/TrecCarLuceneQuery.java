@@ -687,7 +687,7 @@ public class TrecCarLuceneQuery {
         if(runFile!=null){
             HashSet<String> alreadyReturned = new HashSet<>();
             if(cfg.isKillQueryEntityIds()) 
-                alreadyReturned.add(queryId); // never output the query id
+                alreadyReturned.addAll(extractQueryIdTitle(queryId)); // never output the query id
             int rank = 1;
             for (Map.Entry<String, Float> expansionEntity : expansionEntities) {
 
@@ -730,14 +730,14 @@ public class TrecCarLuceneQuery {
             List<String> outlinks = new ArrayList();
             outlinks.addAll(Arrays.asList(outLinkIds));
             if(cfg.isKillQueryEntityIds()) 
-                outlinks.remove(queryId);
+                outlinks.removeAll(extractQueryIdTitle(queryId));
             result.addAll(outlinks);
         } else if(inLinks != null) {
             final String[] inLinkIds = inLinks.stringValue().split("\n");
             List<String> inlinks = new ArrayList<>();
             inlinks.addAll(Arrays.asList(inLinkIds));
             if(cfg.isKillQueryEntityIds())  
-                inlinks.remove(queryId);
+                inlinks.removeAll(extractQueryIdTitle(queryId));
             result.addAll(inlinks);
         }
 
@@ -780,6 +780,21 @@ public class TrecCarLuceneQuery {
         
     }
 
+    private static Collection<String> extractQueryIdTitle (String queryId) {
+        HashSet<String> result = new HashSet<>();
+        result.add(queryId);
+
+        int offset = queryId.indexOf('/');
+
+        while(offset != -1){
+            String subId = queryId.substring(0, offset);
+            result.add(subId);
+            offset = queryId.indexOf('/', offset+1);
+        }
+
+        return result;
+    }
+
     private static void outputQueryResults(@NotNull TrecCarLuceneConfig.LuceneQueryConfig cfg,
                                            @NotNull IndexSearcher searcher,
                                            @NotNull String queryId,
@@ -792,8 +807,9 @@ public class TrecCarLuceneQuery {
         if (runFile != null){
 
             HashSet<String> alreadyReturned = new HashSet<>();
-            if(cfg.isKillQueryEntityIds()) 
-                alreadyReturned.add(queryId); 
+            if(cfg.isKillQueryEntityIds()) { 
+                alreadyReturned.addAll(extractQueryIdTitle(queryId)); 
+            }
             for (int i = 0; i < scoreDoc.length; i++) {
                 ScoreDoc score = scoreDoc[i];
                 final Document doc = searcher.doc(score.doc); // to access stored content
