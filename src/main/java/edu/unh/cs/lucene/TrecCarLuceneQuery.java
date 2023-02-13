@@ -43,7 +43,7 @@ public class TrecCarLuceneQuery {
                 " (section|page|pageViaSection) (run|display) OutlineCBOR INDEX RUNFile" +
                 " (sectionPath|all|subtree|title|leafHeading|interior)" +
                 " (bm25|ql|default) (none|rm|ecm|ecm-rm|ecm-psg|rm1|ecm-psg1) (std|english) numResults " +
-                "numRmExpansionDocs numRmExpansionTerms (killQueryEntities|none) [searchField1] [searchField2] ...\n" +
+                "numRmExpansionDocs numRmExpansionTerms (killQueryEntities|none) (recip|score) [searchField1] [searchField2] ...\n" +
                 "searchFields one of "+Arrays.toString(TrecCarRepr.TrecCarSearchField.values()));
         System.exit(-1);
     }
@@ -53,6 +53,12 @@ public class TrecCarLuceneQuery {
         else if(inputString.equalsIgnoreCase("no")) return false;
         else if(inputString.startsWith("kill")) return true;
         else throw new RuntimeException("argument must either be killQueryEntities or none, but is \'"+inputString+"\'");
+    }
+
+    private boolean parseRankAggregator(String inputString) throws RuntimeException {
+        if(inputString.equalsIgnoreCase("score")) return false;
+        else if(inputString.startsWith("recip")) return true;
+        else throw new RuntimeException("argument must either be recip or score, but is \'"+inputString+"\'");
     }
 
     public TrecCarLuceneQuery(String representation,
@@ -69,12 +75,13 @@ public class TrecCarLuceneQuery {
                               int numRmExpansionDocs,
                               int numRmExpansionTerms,
                               String killQueryEntityIds,
+                              String rankAggegration,
                               List<String> searchFields) {
 
         TrecCarLuceneConfig.LuceneIndexConfig indexConfig = TrecCarLuceneConfig.getLuceneIndexConfig(representation);
         TrecCarLuceneConfig.LuceneQueryConfig cfg = new TrecCarLuceneConfig.LuceneQueryConfig(indexConfig,
                 !("display".equals(output)), "section".equals(queryType), "pageViaSection".equals(queryType), 
-                parseKillQueryEntitiesArgument(killQueryEntityIds));
+                parseKillQueryEntitiesArgument(killQueryEntityIds), parseRankAggregator(rankAggegration));
 
         System.out.println("Index loaded from " + indexPath + "/" + cfg.getIndexConfig().getIndexName());
         IndexSearcher searcher = null;
@@ -464,6 +471,7 @@ public class TrecCarLuceneQuery {
                                         int numRmExpansionTerms,
                                         String queryModel) throws IOException {
         ScoreDoc[] run = null;
+        List<Entry<String, Float>>  run2 = null;
 
         PrintStream debugStream = (!cfg.isOutputAsRun()?System.out:SYSTEM_NULL);
         if ("ecm-psg".equals(expansionModel)) {
@@ -474,10 +482,10 @@ public class TrecCarLuceneQuery {
             run = ecmPsgRanking(cfg, searcher, queryId, queryBuilder, queryStr, runFile, scoreDocs, debugStream, numRmExpansionDocs, numRmExpansionTerms,  numResults, queryModel, true);
         } else if ("ecm-rm".equals(expansionModel)){
             final ScoreDoc[] scoreDocs = oneExpandedQuery(cfg, searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, queryBuilder.trecCarRepr.getTextField().name(), queryModel, numRmExpansionDocs, numResults, numRmExpansionTerms, false );
-            return ecmRanking(cfg, searcher, queryId, runFile, scoreDocs, debugStream, numResults, numRmExpansionDocs,  queryModel);
+            run2 = ecmRanking(cfg, searcher, queryId, runFile, scoreDocs, debugStream, numResults, numRmExpansionDocs,  queryModel);
         } else if ("ecm".equals(expansionModel)) {
             final ScoreDoc[] scoreDocs = oneQuery(cfg, searcher, queryBuilder, queryStr, queryId, SYSTEM_NULL_WRITER, debugStream, numResults, queryModel);
-            return ecmRanking(cfg, searcher, queryId, runFile, scoreDocs, debugStream, numResults, numRmExpansionDocs, queryModel);
+            run2 = ecmRanking(cfg, searcher, queryId, runFile, scoreDocs, debugStream, numResults, numRmExpansionDocs, queryModel);
         } else if ("rm".equals(expansionModel)){
             run =  oneExpandedQuery(cfg, searcher, queryBuilder, queryStr, queryId, runFile, debugStream, queryBuilder.trecCarRepr.getTextField().name(), queryModel, numRmExpansionDocs, numResults, numRmExpansionTerms, false);
         } else if ("rm1".equals(expansionModel)){
@@ -489,12 +497,23 @@ public class TrecCarLuceneQuery {
             run =  oneQuery(cfg, searcher, queryBuilder, queryStr, queryId, runFile, debugStream, numResults, queryModel);
         }
 
-        Map<String, Float> clonedRun;
 
-        clonedRun = accumulateEntries(numResults, run, docInt -> getDocId(searcher, docInt), new HashMap<>());
+        if(run != null){
+          Map<String, Float> clonedRun;
+          clonedRun = accumulateEntries(cfg.useRecipRankAggregation(), numResults, run, docInt -> getDocId(searcher, docInt), new HashMap<>());
+          return clonedRun.entrySet();
+        } 
 
-        return clonedRun.entrySet();
-    }
+        if(run2 != null){
+            if(cfg.useRecipRankAggregation()){
+                return scoreMapToRecipRank(numResults, run2, new HashMap<>()).entrySet();
+            } else {
+                return run2;
+            }
+        
+        }
+        throw new RuntimeException("Either run or run2 must not be null");
+        }
 
 
     @NotNull
@@ -561,7 +580,7 @@ public class TrecCarLuceneQuery {
                                                                   int takeKTerms,
                                                                   @NotNull ScoreDoc[] scoreDocAll,
                                                                   FetchEntries fetchEntries) throws IOException {
-        Map<String, Float> wordFreq = accumulateEntries(takeKDocs, scoreDocAll, fetchEntries, new HashMap<>());
+        Map<String, Float> wordFreq = accumulateEntries(false, takeKDocs, scoreDocAll, fetchEntries, new HashMap<>());
 
         ArrayList<Map.Entry<String, Float>> allWordFreq = new ArrayList<>(wordFreq.entrySet());
         allWordFreq.sort((kv1, kv2) -> {
@@ -576,7 +595,29 @@ public class TrecCarLuceneQuery {
         return expansionTerms;
     }
 
-    private static Map<String, Float> accumulateEntries(int takeKDocs, ScoreDoc[] scoreDocAll, FetchEntries fetchEntries,  Map<String, Float> wordFreq) throws IOException {
+    private static Map<String, Float> scoreMapToRecipRank(int takeKDocs, Collection<Entry<String, Float>> run, Map<String, Float> result) throws IOException {
+
+        ArrayList<Entry<String, Float>> allAccum = new ArrayList<>(run);
+        allAccum.sort((kv1, kv2) -> {
+            return Float.compare(kv2.getValue(), kv1.getValue()); // sort descending by flipping
+        });
+
+
+        int rank = 1;
+        for(Entry<String,Float> entry : allAccum.subList(0,takeKDocs)){
+            float recipRankScore =  (1f/(float) rank);
+            result.compute(entry.getKey(), (t, oldV) -> 
+                     (oldV==null)? recipRankScore : oldV + recipRankScore);
+            rank++;
+        }
+
+
+        return result;
+
+    }
+
+
+    private static Map<String, Float> accumulateEntries(boolean recipRank, int takeKDocs, ScoreDoc[] scoreDocAll, FetchEntries fetchEntries,  Map<String, Float> wordFreq) throws IOException {
 
         
         //private static List<Map.Entry<String, Float>> marginalizeFreqs(int takeKDocs, int takeKTerms, ScoreDoc[] scoreDocAll, FetchEntries fetchEntries, Map<String, Float> wordFreqs ) throws IOException {
@@ -605,11 +646,18 @@ public class TrecCarLuceneQuery {
             }
             if (useLog) normalizer = Math.log(normalizer);
 
-            for (ScoreDoc score : scoreDoc) {
+            for (int rank = 1; rank < scoreDoc.length; rank++) {
+                ScoreDoc score = scoreDoc[rank-1];
                 if (score == null) {
                     continue;
                 }
-                Double weight = useLog ? (score.score - normalizer) : (score.score / normalizer);
+                Double weight;
+                if (recipRank) {
+                    weight = 1.0 / ((float) rank);
+                } else {
+                    weight = useLog ? (score.score - normalizer) : (score.score / normalizer);
+                }
+
                 for ( String entry: fetchEntries.entries(score.doc) ) {
                     wordFreq.compute(entry, (t, oldV) ->
                             (oldV==null)? weight.floatValue() : (oldV + weight.floatValue())
@@ -727,21 +775,25 @@ public class TrecCarLuceneQuery {
         ArrayList<String> result = new ArrayList<>();
         if(outLinks!=null ) {
             final String[] outLinkIds = outLinks.stringValue().split("\n");
-            List<String> outlinks = new ArrayList();
+            List<String> outlinks = new ArrayList<>();
             outlinks.addAll(Arrays.asList(outLinkIds));
-            if(cfg.isKillQueryEntityIds()) 
-                outlinks.removeAll(extractQueryIdTitle(queryId));
             result.addAll(outlinks);
         } else if(inLinks != null) {
             final String[] inLinkIds = inLinks.stringValue().split("\n");
             List<String> inlinks = new ArrayList<>();
             inlinks.addAll(Arrays.asList(inLinkIds));
-            if(cfg.isKillQueryEntityIds())  
-                inlinks.removeAll(extractQueryIdTitle(queryId));
             result.addAll(inlinks);
         }
 
         result.removeIf(String::isEmpty);
+        if(cfg.isKillQueryEntityIds())  
+            result.removeAll(extractQueryIdTitle(queryId));
+
+        // if(result.contains("enwiki:Michelin")) System.out.println("==* Michelin in "+doc.toString());
+        // if(result.contains("enwiki:Low%20rolling%20resistance%20tire")) System.out.println("==* Low%20rolling%20resistance%20tire in "+doc.toString());
+        // if(result.contains("enwiki:Magnesium%20alloy")) System.out.println("==* Magnesium%20alloy in "+doc.toString());
+        // if(result.contains("enwiki:Magnesium%Alloy%20wheel")) System.out.println("==* Magnesium%Alloy%20wheel in "+doc.toString());
+        
         return result;
     }
 

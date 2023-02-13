@@ -33,7 +33,7 @@ Where:
 This is designed to work with a previousy created index (`INDEX`) and TREC CAR queries which come in the form of page outlines with title, headings, and subheadings
 
 Call Main Class with argument:
-`query (paragraph|page|entity|ecm|aspect)  (section|page|pageViaSection) (run|display) OutlineCBOR INDEX RUNFile (sectionPath|all|subtree|title|leafHeading|interior) (bm25|ql|default) (none|rm|ecm|ecm-rm|ecm-psg|rm1|ecm-psg1) (std|english) numResults numRmExpansionDocs (killQueryEntities|none) numRmExpansionTerms [searchField1] [searchField2] ...
+`query (paragraph|page|entity|ecm|aspect)  (section|page|pageViaSection) (run|display) OutlineCBOR INDEX RUNFile (sectionPath|all|subtree|title|leafHeading|interior) (bm25|ql|default) (none|rm|ecm|ecm-rm|ecm-psg|rm1|ecm-psg1) (std|english) numResults numRmExpansionDocs (killQueryEntities|none) (recip|score) numRmExpansionTerms [searchField1] [searchField2] ...
 searchFields one of [Id,  Text, Headings, Title, AnchorNames, DisambiguationNames, CategoryNames, InlinkIds, OutlinkIds, EntityLinks, Entity, LeadText, WikiDataQId]`
 
 
@@ -79,5 +79,8 @@ Where:
 * (killQueryEntities|none): selects one of
     * none: no effect
     * killQueryEntities: will ignore entityIds when they are the same as the queryId during entity expansion, entity ranking, and when producing ranking outputs.  -- this is necessary when using entity ranking with TREC CAR's allButBenchmark corpus, where ground truth can be leaked by matching the query id against all inlinks. Activating this option will avoid the leakage.
+* (recip|score): selects how rankings are aggregated across sections:
+    * recip: aggregate by reciprocal rank (1/rank), highest rank is 1
+    * score: aggregate by a normalized rank score, as in RM3
 * Searchfield ... : a list of indexed fields that will be used during full text search (e.g. "Text"). Entities will automatically be searched in the entity field, not the full text.
 

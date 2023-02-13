@@ -172,13 +172,15 @@ public class TrecCarLuceneConfig {
         boolean queryAsSection;
         boolean queryPageViaSection;
         private boolean killQueryEntityIds;
+        private boolean recipRankAggregation;
 
-        public LuceneQueryConfig(LuceneIndexConfig indexConfig, boolean outputAsRun, boolean queryAsSection, boolean queryPageViaSection, boolean killQueryEntityIds) {
+        public LuceneQueryConfig(LuceneIndexConfig indexConfig, boolean outputAsRun, boolean queryAsSection, boolean queryPageViaSection, boolean killQueryEntityIds, boolean recipRankAggregation) {
             this.indexConfig = indexConfig;
             this.outputAsRun = outputAsRun;
             this.queryAsSection = queryAsSection;
             this.queryPageViaSection = queryPageViaSection;
             this.killQueryEntityIds = killQueryEntityIds;
+            this.recipRankAggregation = recipRankAggregation;
         }
 
         public LuceneIndexConfig getIndexConfig() {
@@ -199,6 +201,10 @@ public class TrecCarLuceneConfig {
 
         public boolean isKillQueryEntityIds() {
             return killQueryEntityIds;
+        }
+
+        public boolean useRecipRankAggregation() {
+            return recipRankAggregation;
         }
 
     }

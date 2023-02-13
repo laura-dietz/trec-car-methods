@@ -62,15 +62,16 @@ public class ProjectMain {
             int numRmExpansionDocs = (args.length > 12)? Integer.parseInt(args[12]): 20;
             int numRmExpansionTerms = (args.length > 13)? Integer.parseInt(args[13]): 20;
             String killQueryEntityString = args[14];
+            String rankAggregator = args[15];
 
             List<String> searchFields = new ArrayList<>();
-            if (args.length  > 15) {
-                searchFields = Arrays.asList(Arrays.copyOfRange(args, 15, args.length));
+            if (args.length  > 16) {
+                searchFields = Arrays.asList(Arrays.copyOfRange(args, 16, args.length));
             }
 
             new TrecCarLuceneQuery(representation,queryType,output,queryCborFile,indexPath,runFileName,queryModel,
                     retrievalModel,expansionModel,analyzerStr,numResults,numRmExpansionDocs,
-                    numRmExpansionTerms,killQueryEntityString,searchFields);
+                    numRmExpansionTerms,killQueryEntityString,rankAggregator,searchFields);
 
         } else {
             System.err.println("ERROR! Mode must be either `index` or `query`.");
