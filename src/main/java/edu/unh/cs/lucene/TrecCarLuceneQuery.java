@@ -604,7 +604,7 @@ public class TrecCarLuceneQuery {
 
 
         int rank = 1;
-        for(Entry<String,Float> entry : allAccum.subList(0,takeKDocs)){
+        for(Entry<String,Float> entry : allAccum.subList(0,Math.min(takeKDocs, allAccum.size()))){
             float recipRankScore =  (1f/(float) rank);
             result.compute(entry.getKey(), (t, oldV) -> 
                      (oldV==null)? recipRankScore : oldV + recipRankScore);
