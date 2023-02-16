@@ -659,6 +659,10 @@ public class TrecCarLuceneQuery {
                 }
 
                 for ( String entry: fetchEntries.entries(score.doc) ) {
+                    // Caveat  RM3 would divide the weight by the number of entries.
+                    //  This code doesnt do that. The weight of the entry is the sum of rank scores it is associated with
+                    // --- regardless of how many elements are associated with the rank score
+
                     wordFreq.compute(entry, (t, oldV) ->
                             (oldV==null)? weight.floatValue() : (oldV + weight.floatValue())
                     );
